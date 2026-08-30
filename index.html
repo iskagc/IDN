@@ -397,19 +397,14 @@ function orderedMonths(){
   state.months.forEach(m => { const p = parseMes(m); if (p) items.push({ name: m, mes: p.mes, year: p.year }); });
   items.sort((a, b) => (yrOf(a) - yrOf(b)) || (a.mes - b.mes) || (a.name < b.name ? -1 : a.name > b.name ? 1 : 0));
   const names = items.map(x => x.name);
-  const cur = state.currentMonth;
-  if (cur && names.indexOf(cur) === -1) {
-    const p = parseMes(cur);
-    let ins = false;
-    if (p) {
-      for (let i = 0; i < names.length; i++) {
-        const q = parseMes(names[i]);
-        if (q && ((yrOf(p) < yrOf(q)) || (yrOf(p) === yrOf(q) && p.mes < q.mes))) { names.splice(i, 0, cur); ins = true; break; }
-      }
-    }
-    if (!ins) names.push(cur);
-  }
-  return names;
+  const actual = mesActualCompleto();
+  const viewed = state.currentMonth;
+  if (actual && names.indexOf(actual) === -1) names.push(actual);
+  if (viewed && names.indexOf(viewed) === -1) names.push(viewed);
+  const pinned = [];
+  if (actual) pinned.push(actual);
+  if (viewed && viewed !== actual) pinned.push(viewed);
+  return pinned.concat(names.filter(n => n !== actual && n !== viewed));
 }
 
 function renderTabs(){
@@ -671,17 +666,25 @@ $('serviceForm').addEventListener('submit', async e => {
 async function renderApp(){
   state.currentMonth = state.currentMonth || mesActualCompleto();
   await loadMonths();
+  if (state.months.indexOf(state.currentMonth) === -1) {
+    const r = await call(() => apiPost({ action:'createMonth', mes: state.currentMonth, correo: session.correo }));
+    if (r && r.ok) await loadMonths();
+    else if (r && r.message) notify(r.message, 'err');
+  }
   renderTabs();
   await loadMonth(state.currentMonth);
 }
 
 (function init(){
-  $('newMonthSel').innerHTML = '<option value="">Mes…</option>' + MESES.map((m, i) => '<option value="' + i + '">' + m + '</option>').join('');
+  const now = new Date();
+  const nextMi = (now.getMonth() + 1) % 12;
+  const nextY = now.getMonth() === 11 ? now.getFullYear() + 1 : now.getFullYear();
+  $('newMonthSel').innerHTML = '<option value="">Mes…</option>' + MESES.map((m, i) => '<option value="' + i + '"' + (i === nextMi ? ' selected' : '') + '>' + m + '</option>').join('');
   const ysel = $('newYearSel');
-  const cy = new Date().getFullYear();
+  const cy = now.getFullYear();
   ysel.innerHTML = '';
   for (let y = 2023; y <= cy + 2; y++) {
-    ysel.innerHTML += '<option value="' + y + '"' + (y === cy ? ' selected' : '') + '>' + y + '</option>';
+    ysel.innerHTML += '<option value="' + y + '"' + (y === nextY ? ' selected' : '') + '>' + y + '</option>';
   }
   const saved = localStorage.getItem('comisiones_session');
   if (saved) {
