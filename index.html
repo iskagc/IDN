@@ -62,7 +62,7 @@
   .status-bar .strong{font-weight:700;}
 
   .tbl-wrap{background:#fff; border:1px solid var(--border); border-radius:8px; overflow-x:auto;}
-  table{width:100%; border-collapse:collapse; min-width:1250px;}
+  table{width:100%; border-collapse:collapse; min-width:1300px;}
   th,td{padding:8px 10px; border-bottom:1px solid var(--border); text-align:left; vertical-align:top;}
   th{background:#eef2f8; font-size:12px; text-transform:uppercase; letter-spacing:.3px; position:sticky; top:0;}
   tbody tr:hover{background:#f6f8fc;}
@@ -75,7 +75,7 @@
   .chip.ok{background:#dcf4ec; color:var(--accent-dark);}
   .chip.info{background:#fce3cc; color:var(--primary-dark);}
 
-  .cards{display:grid; grid-template-columns:repeat(auto-fit, minmax(210px, 1fr)); gap:12px; margin-bottom:16px;}
+  .cards{display:grid; grid-template-columns:repeat(auto-fit, minmax(210px, 1fr)); gap:12px; margin:14px 0 4px;}
   .card{background:#fff; border:1px solid var(--border); border-radius:10px; padding:16px;}
   .card .label{color:var(--muted); font-size:11px; text-transform:uppercase; letter-spacing:.4px; font-weight:700;}
   .card .value{font-size:21px; font-weight:700; margin-top:6px; white-space:nowrap;}
@@ -108,7 +108,7 @@
 <body>
 
 <header class="app-header hidden" id="appHeader">
-  <img class="logo" src="logo.png" alt="Logo Impacto del Norte">
+  <img class="logo" src="logo.png" alt="Logo Impacto del Norte" onerror="this.style.display='none'">
   <div class="brand">Control de Comisiones</div>
   <div class="spacer"></div>
   <div class="user-name" id="headerUser"></div>
@@ -133,40 +133,30 @@
       <div class="msg" id="loginMsg"></div>
     </form>
     <div class="accounts-hint">
-      Cuentas de prueba:<br>
-      ericka.castellanos@impactodelnorte.cl — Empleador<br>
-      jose.zamora@impactodelnorte.cl — Empleado
+      Cuentas:<br>
+      ericka.castellanos@impactodelnorte.cl<br>
+      jose.zamora@impactodelnorte.cl
     </div>
   </div>
 
   <div id="appView" class="hidden">
-
-    <div id="empleadorView" class="hidden">
-      <div class="toolbar">
-        <div class="tabs" id="monthTabs"></div>
-        <div class="actions">
-          <div class="msel-group">
-            <select id="newMonthSel" class="msel"><option value="">Mes…</option></select>
-            <select id="newYearSel" class="msel"></select>
-            <button class="btn btn-ghost" id="btnGoMonth">Ir</button>
-          </div>
-          <button class="btn btn-ghost" id="btnViewToggle">Ver resumen mensual</button>
-          <button class="btn btn-primary" id="btnAgregar">+ Agregar servicio</button>
+    <div class="cards" id="monthCards"></div>
+    <div class="toolbar">
+      <div class="tabs" id="monthTabs"></div>
+      <div class="actions">
+        <div class="msel-group">
+          <select id="newMonthSel" class="msel"><option value="">Mes…</option></select>
+          <select id="newYearSel" class="msel"></select>
+          <button class="btn btn-ghost" id="btnGoMonth">Ir</button>
         </div>
+        <button class="btn btn-ghost" id="btnViewToggle">Ver resumen mensual</button>
+        <button class="btn btn-primary" id="btnAgregar">+ Agregar servicio</button>
       </div>
-      <div class="status-bar" id="monthStatus"></div>
-      <div id="empleadorContent"></div>
     </div>
-
-    <div id="empleadoView" class="hidden">
-      <h2>Resumen de José Zamora</h2>
-      <div class="cards" id="empCards"></div>
-      <div class="totals-box" id="empTotals"></div>
-      <h2>Mis registros (todos los meses)</h2>
-      <div id="empTable"></div>
-    </div>
-
+    <div class="status-bar" id="monthStatus"></div>
+    <div id="appContent"></div>
   </div>
+
 </div>
 
 <div class="overlay hidden" id="modalOverlay">
@@ -256,7 +246,7 @@
 </div>
 
 <script>
-const SCRIPT_URL = "https://script.google.com/macros/s/AKfycbwPxF4onXBKs6A2oO2CJZ9pN2e_EPYZAh1yiJiIE-kjztR4e10LcmPz9ejDygPF81cl/exec";
+const SCRIPT_URL = "https://script.google.com/macros/s/AKfycbwN4XZyEr_l_dTgWlisxmSkE3RsOx2Q5ihil4MwDY3p1jdIVwd9CS6S10mE_VLQk_0c/exec";
 
 const MESES = ['ENERO','FEBRERO','MARZO','ABRIL','MAYO','JUNIO','JULIO','AGOSTO','SEPTIEMBRE','OCTUBRE','NOVIEMBRE','DICIEMBRE'];
 const COLS = [
@@ -274,7 +264,8 @@ const COLS = [
   { k:'% Comisión', num:true },
   { k:'Comisión', num:true, money:true },
   { k:'Estado Comisión', chip:true },
-  { k:'Observaciones' }
+  { k:'Observaciones' },
+  { k:'Ingresado Por' }
 ];
 
 let session = null;
@@ -366,8 +357,7 @@ function showApp(){
   $('appView').classList.remove('hidden');
   $('appHeader').classList.remove('hidden');
   $('headerUser').textContent = session.nombre + ' — ' + session.rol;
-  if (session.rol === 'Empleador') { $('empleadorView').classList.remove('hidden'); $('empleadoView').classList.add('hidden'); renderEmpleador(); }
-  else { $('empleadoView').classList.remove('hidden'); $('empleadorView').classList.add('hidden'); renderEmpleado(); }
+  renderApp();
 }
 
 function parseMes(nombre){
@@ -468,12 +458,36 @@ async function loadMonth(mes){
   const r = await call(() => apiGet({ action:'list', mes: mes }));
   if (r && r.ok) { state.data = r.records || []; }
   else { state.data = []; }
+  renderCards();
   renderContent();
 }
 
 function renderContent(){
   renderStatus();
   if (state.view === 'resumen') renderResumen(); else renderTable();
+}
+
+function renderCards(){
+  let pendiente = 0, paraPago = 0, pagado = 0, total = 0;
+  state.data.forEach(r => {
+    const vn = Number(r['Valor Neto']) || 0;
+    const com = Number(r['Comisión']) || 0;
+    const sp = String(r['Estado Pago Factura'] || '').toUpperCase().trim() === 'PAGADA';
+    const sc = String(r['Estado Comisión'] || '').toUpperCase().trim();
+    total += com;
+    if (!sp) pendiente += vn;
+    if (sc === 'PARA PAGO') paraPago += com;
+    if (sc === 'PAGADO') pagado += com;
+  });
+  const cards = [
+    { l:'Pendiente de cobro de factura', v: fmtMoney(pendiente) || '$0', s:'Suma de Valor Neto con factura no pagada' },
+    { l:'Comisiones PARA PAGO', v: fmtMoney(paraPago) || '$0', s:'Listas para pagar al vendedor' },
+    { l:'Comisiones pagadas', v: fmtMoney(pagado) || '$0', s:'Estado Comisión = PAGADO' },
+    { l:'Total de comisiones del mes', v: fmtMoney(total) || '$0', s: esc(state.currentMonth) }
+  ];
+  $('monthCards').innerHTML = cards.map(c =>
+    '<div class="card"><div class="label">' + c.l + '</div><div class="value">' + c.v + '</div><div class="sub">' + c.s + '</div></div>'
+  ).join('');
 }
 
 function cellHtml(r, c){
@@ -503,13 +517,13 @@ function tableHtml(rows, cols, opts){
 }
 
 function renderTable(){
-  const wrap = $('empleadorContent');
+  const wrap = $('appContent');
   wrap.innerHTML = tableHtml(state.data, COLS, { empty:'No hay servicios registrados en ' + esc(state.currentMonth) + '.', actions:true });
   wrap.querySelectorAll('[data-edit]').forEach(a => a.addEventListener('click', () => openModal('edit', a.dataset.edit)));
 }
 
 function renderResumen(){
-  const wrap = $('empleadorContent');
+  const wrap = $('appContent');
   const pagadas = state.data.filter(r => String(r['Estado Pago Factura'] || '').toUpperCase().trim() === 'PAGADA');
   if (!pagadas.length) {
     wrap.innerHTML = '<div class="tbl-wrap"><div class="empty">No hay servicios con factura PAGADA en ' + esc(state.currentMonth) + '.</div></div>';
@@ -522,7 +536,7 @@ function renderResumen(){
     porEmpresa[e] = (porEmpresa[e] || 0) + (Number(r['Comisión']) || 0);
   });
   let html = '<div class="totals-box"><strong>Resumen mensual ' + esc(state.currentMonth) + '</strong> — servicios con pago de factura PAGADA.<br>';
-  html += 'Total de comisiones a pagar a José: <span style="font-weight:700; color:var(--primary);">' + fmtMoney(tot) + '</span><br>';
+  html += 'Total de comisiones del mes: <span style="font-weight:700; color:var(--primary);">' + fmtMoney(tot) + '</span><br>';
   html += Object.keys(porEmpresa).map(e => '  ' + esc(e) + ': ' + fmtMoney(porEmpresa[e])).join(' • ');
   html += '</div>';
   html += '<div class="tbl-wrap"><table><thead><tr>';
@@ -645,62 +659,11 @@ $('serviceForm').addEventListener('submit', async e => {
   }
 });
 
-async function renderEmpleador(){
+async function renderApp(){
   state.currentMonth = state.currentMonth || mesActualCompleto();
   await loadMonths();
   renderTabs();
   await loadMonth(state.currentMonth);
-}
-
-async function renderEmpleado(){
-  await loadMonths();
-  $('empCards').innerHTML = '<div class="empty">Cargando…</div>';
-  const results = await Promise.all(state.months.map(m => call(() => apiGet({ action:'list', mes: m }))));
-  const todos = [];
-  results.forEach((r, i) => {
-    if (r && r.ok) {
-      r.records.forEach(rec => { const c = Object.assign({}, rec); c.__mes = state.months[i] || ''; todos.push(c); });
-    }
-  });
-  state.empRows = todos;
-  renderEmpSummary();
-  renderEmpTable();
-}
-
-function renderEmpSummary(){
-  let pendiente = 0, paraPago = 0, pagado = 0, total = 0, porEmpresa = {}, pendPorEmpresa = {};
-  state.empRows.forEach(r => {
-    const vn = Number(r['Valor Neto']) || 0;
-    const com = Number(r['Comisión']) || 0;
-    const sp = String(r['Estado Pago Factura'] || '').toUpperCase().trim() === 'PAGADA';
-    const sc = String(r['Estado Comisión'] || '').toUpperCase().trim();
-    const emp = String(r['Empresa'] || '').trim() || 'SIN EMPRESA';
-    total += com;
-    if (!sp) { pendiente += vn; pendPorEmpresa[emp] = (pendPorEmpresa[emp] || 0) + vn; }
-    if (sc === 'PARA PAGO') paraPago += com;
-    if (sc === 'PAGADO') pagado += com;
-    porEmpresa[emp] = (porEmpresa[emp] || 0) + com;
-  });
-  const cards = [
-    { l:'Pendiente de cobro de factura', v: fmtMoney(pendiente) || '$0', s:'Suma de Valor Neto con factura no pagada' },
-    { l:'Comisiones PARA PAGO', v: fmtMoney(paraPago) || '$0', s:'Lo que te corresponde cobrar' },
-    { l:'Comisiones ya pagadas', v: fmtMoney(pagado) || '$0', s:'Estado Comisión = PAGADO' },
-    { l:'Total comisiones acumuladas', v: fmtMoney(total) || '$0', s:'Todos los registros' }
-  ];
-  $('empCards').innerHTML = cards.map(c =>
-    '<div class="card"><div class="label">' + c.l + '</div><div class="value">' + c.v + '</div><div class="sub">' + c.s + '</div></div>'
-  ).join('');
-  let html = '<strong>Comisiones por empresa:</strong> ';
-  html += Object.keys(porEmpresa).map(e => esc(e) + ': ' + fmtMoney(porEmpresa[e])).join(' • ') || '—';
-  html += '<br><strong>Pendiente de cobro por empresa:</strong> ';
-  html += Object.keys(pendPorEmpresa).map(e => esc(e) + ': ' + fmtMoney(pendPorEmpresa[e])).join(' • ') || '—';
-  html += '<br><em>Total de registros: ' + state.empRows.length + '</em>';
-  $('empTotals').innerHTML = html;
-}
-
-function renderEmpTable(){
-  const cols = [{ k:'__mes', t:'Mes' }].concat(COLS);
-  $('empTable').innerHTML = tableHtml(state.empRows, cols, { empty:'Aún no hay registros.' });
 }
 
 (function init(){
