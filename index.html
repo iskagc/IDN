@@ -1,0 +1,726 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Control de Comisiones</title>
+<style>
+  :root{
+    --primary:#F8821B; --primary-dark:#c9640f; --accent:#57CAA6; --accent-dark:#2f9c7f;
+    --bg:#f2f4f8; --card:#ffffff; --border:#d8dee9; --text:#22303f; --muted:#6b7a8c;
+    --danger:#c0392b; --ok:#2f9c7f;
+  }
+  *{box-sizing:border-box; margin:0; padding:0;}
+  body{font-family:'Segoe UI',Arial,sans-serif; background:var(--bg); color:var(--text); font-size:14px;}
+  .container{max-width:1200px; margin:0 auto; padding:16px;}
+  h1{font-size:20px;}
+  h2{font-size:16px; margin:14px 0 8px;}
+  .muted{color:var(--muted); font-size:13px;}
+  .hidden{display:none !important;}
+
+  .app-header{position:relative; overflow:hidden;
+    background:linear-gradient(135deg, var(--primary) calc(50% - 6px), #fff calc(50% - 6px), #fff calc(50% + 6px), var(--accent) calc(50% + 6px));
+    color:#fff; padding:12px 20px; display:flex; align-items:center; gap:14px; flex-wrap:wrap;}
+  .app-header::before{content:''; position:absolute; left:0; top:0; right:0; bottom:0; background:rgba(22,30,40,.13);}
+  .app-header > *{position:relative; z-index:1;}
+  .app-header .logo{height:38px; width:auto; display:block; border-radius:4px;}
+  .app-header .brand{font-size:18px; font-weight:700; text-shadow:0 1px 2px rgba(0,0,0,.35);}
+  .app-header .spacer{flex:1;}
+  .app-header .user-name{font-size:13px; opacity:.96; text-shadow:0 1px 2px rgba(0,0,0,.35);}
+  .btn{padding:9px 14px; border:none; border-radius:8px; cursor:pointer; font-size:13px; font-weight:600; transition:background .15s;}
+  .btn:disabled{opacity:.55; cursor:default;}
+  .btn-primary{background:var(--primary); color:#fff;}
+  .btn-primary:hover:not(:disabled){background:var(--primary-dark);}
+  .btn-ghost{background:#fff; color:var(--text); border:1px solid var(--border);}
+  .btn-ghost:hover:not(:disabled){background:#eef2f8;}
+  .btn-danger{background:var(--danger); color:#fff;}
+  .btn-danger:hover:not(:disabled){background:#a93228;}
+
+  .first-card{max-width:380px; margin:60px auto; background:var(--card); border:1px solid var(--border); border-radius:12px; padding:28px;}
+  .first-card h1{margin-bottom:4px;}
+  .first-card form{margin-top:18px; display:grid; gap:12px;}
+  .first-card label{font-size:12px; font-weight:600; color:var(--muted); display:block; margin-bottom:4px;}
+  .first-card input{width:100%; padding:9px 11px; border:1px solid var(--border); border-radius:8px; font-size:14px;}
+  .msg{font-size:13px; margin-top:10px; min-height:18px;}
+  .msg.err{color:var(--danger);}
+  .msg.ok{color:var(--ok);}
+  .accounts-hint{font-size:12px; color:var(--muted); margin-top:14px; line-height:1.6;}
+
+  .toolbar{display:flex; align-items:flex-start; justify-content:space-between; gap:12px; flex-wrap:wrap; margin:14px 0 10px;}
+  .tabs{display:flex; flex-wrap:wrap; gap:6px;}
+  .tab{padding:7px 14px; border:1px solid var(--border); border-radius:20px; background:#fff; cursor:pointer; font-weight:600; font-size:13px;}
+  .tab:hover{background:#eef2f8;}
+  .tab.active{background:var(--primary); color:#fff; border-color:var(--primary);}
+  .tab .dot{color:#c0392b;}
+  .tab.active .dot{color:#fff;}
+  .msel{padding:7px 10px; border:1px solid var(--border); border-radius:20px; background:#fff; font-size:13px; font-weight:600;}
+  .msel-group{display:flex; align-items:center; gap:6px; flex-wrap:wrap;}
+  .actions{display:flex; gap:8px; flex-wrap:wrap; align-items:center;}
+
+  .status-bar{background:#fff; border:1px solid var(--border); border-radius:8px; padding:10px 14px; margin-bottom:12px; display:flex; align-items:center; gap:12px; flex-wrap:wrap; font-size:13px;}
+  .status-bar .lbl{color:var(--muted); font-weight:600;}
+  .status-bar .strong{font-weight:700;}
+
+  .tbl-wrap{background:#fff; border:1px solid var(--border); border-radius:8px; overflow-x:auto;}
+  table{width:100%; border-collapse:collapse; min-width:1250px;}
+  th,td{padding:8px 10px; border-bottom:1px solid var(--border); text-align:left; vertical-align:top;}
+  th{background:#eef2f8; font-size:12px; text-transform:uppercase; letter-spacing:.3px; position:sticky; top:0;}
+  tbody tr:hover{background:#f6f8fc;}
+  td.num, th.num{text-align:right; white-space:nowrap;}
+  .lnk{color:var(--primary); cursor:pointer; font-weight:600;}
+  .lnk:hover{text-decoration:underline;}
+
+  .chip{display:inline-block; padding:2px 10px; border-radius:12px; font-size:11px; font-weight:700; white-space:nowrap;}
+  .chip.warn{background:#ffead6; color:#b05a0e;}
+  .chip.ok{background:#dcf4ec; color:var(--accent-dark);}
+  .chip.info{background:#fce3cc; color:var(--primary-dark);}
+
+  .cards{display:grid; grid-template-columns:repeat(auto-fit, minmax(210px, 1fr)); gap:12px; margin-bottom:16px;}
+  .card{background:#fff; border:1px solid var(--border); border-radius:10px; padding:16px;}
+  .card .label{color:var(--muted); font-size:11px; text-transform:uppercase; letter-spacing:.4px; font-weight:700;}
+  .card .value{font-size:21px; font-weight:700; margin-top:6px; white-space:nowrap;}
+  .card .sub{font-size:12px; color:var(--muted); margin-top:4px;}
+  .totals-box{background:#fff; border:1px solid var(--border); border-radius:10px; padding:14px 16px; margin-bottom:12px; font-size:13px; line-height:1.8;}
+
+  .overlay{position:fixed; inset:0; background:rgba(20,28,38,.5); display:flex; align-items:flex-start; justify-content:center; padding:24px 12px; z-index:900; overflow:auto;}
+  .modal{background:#fff; border-radius:12px; max-width:800px; width:100%; padding:22px;}
+  .modal h2{margin-top:0;}
+  .form-grid{display:grid; grid-template-columns:1fr 1fr; gap:12px; margin-top:12px;}
+  .field{display:flex; flex-direction:column; gap:4px;}
+  .field.full{grid-column:1 / -1;}
+  .field label{font-size:12px; font-weight:600; color:var(--muted);}
+  .field input,.field select,.field textarea{padding:8px 10px; border:1px solid var(--border); border-radius:8px; font-size:14px; font-family:inherit;}
+  .field textarea{resize:vertical; min-height:54px;}
+  .field .helper{font-size:11px; color:var(--muted);}
+  .modal-foot{display:flex; justify-content:flex-end; gap:8px; margin-top:18px;}
+
+  .empty{padding:30px; text-align:center; color:var(--muted);}
+  .toast{position:fixed; top:16px; right:16px; padding:12px 16px; border-radius:8px; color:#fff; z-index:1000; box-shadow:0 4px 12px rgba(0,0,0,.25); font-size:13px; font-weight:600; max-width:340px;}
+  .toast.ok{background:var(--ok);}
+  .toast.err{background:var(--danger);}
+  .toast.info{background:var(--primary);}
+
+  @media (max-width:720px){
+    .form-grid{grid-template-columns:1fr;}
+  }
+</style>
+</head>
+<body>
+
+<header class="app-header hidden" id="appHeader">
+  <img class="logo" src="logo.png" alt="Logo Impacto del Norte">
+  <div class="brand">Control de Comisiones</div>
+  <div class="spacer"></div>
+  <div class="user-name" id="headerUser"></div>
+  <button class="btn btn-ghost" id="btnLogout" style="background:rgba(255,255,255,.16); color:#fff; border-color:#ffffff99;">Cerrar sesión</button>
+</header>
+
+<div class="container">
+
+  <div id="loginView" class="first-card">
+    <h1>Iniciar sesión</h1>
+    <div class="muted">Control de comisiones de servicios</div>
+    <form id="loginForm" novalidate>
+      <div>
+        <label for="inCorreo">Correo</label>
+        <input type="email" id="inCorreo" autocomplete="username" required>
+      </div>
+      <div>
+        <label for="inPassword">Contraseña</label>
+        <input type="password" id="inPassword" autocomplete="current-password" required>
+      </div>
+      <button type="submit" class="btn btn-primary" id="btnLogin">Ingresar</button>
+      <div class="msg" id="loginMsg"></div>
+    </form>
+    <div class="accounts-hint">
+      Cuentas de prueba:<br>
+      ericka.castellanos@impactodelnorte.cl — Empleador<br>
+      jose.zamora@impactodelnorte.cl — Empleado
+    </div>
+  </div>
+
+  <div id="appView" class="hidden">
+
+    <div id="empleadorView" class="hidden">
+      <div class="toolbar">
+        <div class="tabs" id="monthTabs"></div>
+        <div class="actions">
+          <div class="msel-group">
+            <select id="newMonthSel" class="msel"><option value="">Mes…</option></select>
+            <select id="newYearSel" class="msel"></select>
+            <button class="btn btn-ghost" id="btnGoMonth">Ir</button>
+          </div>
+          <button class="btn btn-ghost" id="btnViewToggle">Ver resumen mensual</button>
+          <button class="btn btn-primary" id="btnAgregar">+ Agregar servicio</button>
+        </div>
+      </div>
+      <div class="status-bar" id="monthStatus"></div>
+      <div id="empleadorContent"></div>
+    </div>
+
+    <div id="empleadoView" class="hidden">
+      <h2>Resumen de José Zamora</h2>
+      <div class="cards" id="empCards"></div>
+      <div class="totals-box" id="empTotals"></div>
+      <h2>Mis registros (todos los meses)</h2>
+      <div id="empTable"></div>
+    </div>
+
+  </div>
+</div>
+
+<div class="overlay hidden" id="modalOverlay">
+  <div class="modal">
+    <h2 id="modalTitle">Agregar servicio</h2>
+    <form id="serviceForm" novalidate>
+      <input type="hidden" id="fId">
+      <div class="form-grid">
+        <div class="field">
+          <label>Empresa</label>
+          <select id="fEmpresa">
+            <option value="SPA">SPA</option>
+            <option value="EIRL">EIRL</option>
+          </select>
+        </div>
+        <div class="field">
+          <label>Cliente *</label>
+          <input type="text" id="fCliente" required>
+        </div>
+        <div class="field">
+          <label>OTIN o N° Cotización</label>
+          <input type="text" id="fOtin">
+        </div>
+        <div class="field">
+          <label>Guía</label>
+          <input type="text" id="fGuia">
+        </div>
+        <div class="field">
+          <label>OC</label>
+          <input type="text" id="fOc">
+        </div>
+        <div class="field">
+          <label>N° Factura</label>
+          <input type="text" id="fFactura">
+        </div>
+        <div class="field full">
+          <label>Descripción</label>
+          <input type="text" id="fDesc">
+        </div>
+        <div class="field">
+          <label>Valor Neto *</label>
+          <input type="number" id="fValorNeto" min="0" step="1" required>
+        </div>
+        <div class="field">
+          <label>Fecha Vencimiento</label>
+          <input type="date" id="fVenc">
+        </div>
+        <div class="field">
+          <label>Estado Pago Factura</label>
+          <select id="fEstadoPago">
+            <option value="PENDIENTE">PENDIENTE</option>
+            <option value="PAGADA">PAGADA</option>
+          </select>
+        </div>
+        <div class="field">
+          <label>Fecha Pago Factura</label>
+          <input type="date" id="fFechaPago">
+        </div>
+        <div class="field">
+          <label>% Comisión</label>
+          <input type="number" id="fPct" min="0" max="100" step="any" value="8">
+        </div>
+        <div class="field">
+          <label>Comisión</label>
+          <input type="number" id="fComision" min="0" step="any">
+          <div class="helper">Se calcula: Valor Neto × % / 100. Puedes sobrescribirlo.</div>
+        </div>
+        <div class="field">
+          <label>Estado Comisión</label>
+          <select id="fEstadoComision">
+            <option value="PAGO FACT. PEND.">PAGO FACT. PEND.</option>
+            <option value="PARA PAGO">PARA PAGO</option>
+            <option value="PAGADO">PAGADO</option>
+          </select>
+        </div>
+        <div class="field full">
+          <label>Observaciones</label>
+          <textarea id="fObs"></textarea>
+        </div>
+      </div>
+      <div class="modal-foot">
+        <button type="button" class="btn btn-ghost" id="btnCancel">Cancelar</button>
+        <button type="submit" class="btn btn-primary" id="btnSave">Guardar</button>
+      </div>
+    </form>
+  </div>
+</div>
+
+<script>
+const SCRIPT_URL = "https://script.google.com/macros/s/AKfycbwPxF4onXBKs6A2oO2CJZ9pN2e_EPYZAh1yiJiIE-kjztR4e10LcmPz9ejDygPF81cl/exec";
+
+const MESES = ['ENERO','FEBRERO','MARZO','ABRIL','MAYO','JUNIO','JULIO','AGOSTO','SEPTIEMBRE','OCTUBRE','NOVIEMBRE','DICIEMBRE'];
+const COLS = [
+  { k:'Empresa' },
+  { k:'Cliente' },
+  { k:'OTIN o N° Cotización' },
+  { k:'Guía' },
+  { k:'OC' },
+  { k:'Descripción' },
+  { k:'N° Factura' },
+  { k:'Valor Neto', num:true, money:true },
+  { k:'Fecha Vencimiento', fmt:'date' },
+  { k:'Estado Pago Factura', chip:true },
+  { k:'Fecha Pago Factura', fmt:'date' },
+  { k:'% Comisión', num:true },
+  { k:'Comisión', num:true, money:true },
+  { k:'Estado Comisión', chip:true },
+  { k:'Observaciones' }
+];
+
+let session = null;
+let state = { months: [], currentMonth: '', data: [], view: 'tabla' };
+let comisionManual = false;
+
+const $ = id => document.getElementById(id);
+
+function esc(s){
+  return String(s == null ? '' : s).replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+}
+function fmtMoney(v){
+  const n = Number(v);
+  if (v === '' || v == null || isNaN(n)) return '';
+  return new Intl.NumberFormat('es-CL', { style:'currency', currency:'CLP', maximumFractionDigits:0 }).format(n);
+}
+function fmtDate(s){
+  if (!s) return '';
+  const m = String(s).match(/^(\d{4})-(\d{2})-(\d{2})$/);
+  return m ? (m[3] + '/' + m[2] + '/' + m[1]) : String(s);
+}
+function chip(t){
+  const txt = String(t || '').toUpperCase().trim();
+  if (!txt) return '';
+  let cls = 'warn';
+  if (txt === 'PAGADA' || txt === 'PAGADO') cls = 'ok';
+  if (txt === 'PARA PAGO') cls = 'info';
+  return '<span class="chip ' + cls + '">' + esc(t) + '</span>';
+}
+function notify(msg, type){
+  const el = document.createElement('div');
+  el.className = 'toast ' + (type || 'info');
+  el.textContent = msg;
+  document.body.appendChild(el);
+  setTimeout(() => { if (el.parentNode) el.parentNode.removeChild(el); }, 4000);
+}
+async function apiGet(params){
+  const qs = Object.keys(params).map(k => k + '=' + encodeURIComponent(params[k] == null ? '' : params[k])).join('&');
+  const res = await fetch(SCRIPT_URL + '?' + qs);
+  if (!res.ok) throw new Error('Error HTTP ' + res.status);
+  return res.json();
+}
+async function apiPost(body){
+  const res = await fetch(SCRIPT_URL, { method:'POST', headers:{'Content-Type':'text/plain;charset=utf-8'}, body: JSON.stringify(body) });
+  if (!res.ok) throw new Error('Error HTTP ' + res.status);
+  return res.json();
+}
+async function call(fn){
+  try { return await fn(); }
+  catch (err) { notify('Error de red o de servidor: ' + err.message, 'err'); return null; }
+}
+
+$('loginForm').addEventListener('submit', async e => {
+  e.preventDefault();
+  const btn = $('btnLogin'); const msg = $('loginMsg');
+  btn.disabled = true; msg.textContent = ''; msg.className = 'msg';
+  const correo = $('inCorreo').value.trim();
+  const password = $('inPassword').value;
+  const r = await call(() => apiGet({ action:'login', correo: correo, password: password }));
+  btn.disabled = false;
+  if (!r) return;
+  if (r.ok) {
+    session = { correo: r.correo, rol: r.rol, nombre: r.nombre };
+    localStorage.setItem('comisiones_session', JSON.stringify(session));
+    showApp();
+  } else {
+    msg.textContent = r.message; msg.className = 'msg err';
+  }
+});
+
+$('btnLogout').addEventListener('click', () => {
+  session = null;
+  localStorage.removeItem('comisiones_session');
+  $('inPassword').value = '';
+  $('appHeader').classList.add('hidden');
+  $('appView').classList.add('hidden');
+  $('loginView').classList.remove('hidden');
+});
+
+function showLogin(onError){
+  $('appHeader').classList.add('hidden');
+  $('appView').classList.add('hidden');
+  $('loginView').classList.remove('hidden');
+  if (onError) { const msg = $('loginMsg'); msg.textContent = onError; msg.className = 'msg err'; }
+}
+
+function showApp(){
+  $('loginView').classList.add('hidden');
+  $('appView').classList.remove('hidden');
+  $('appHeader').classList.remove('hidden');
+  $('headerUser').textContent = session.nombre + ' — ' + session.rol;
+  if (session.rol === 'Empleador') { $('empleadorView').classList.remove('hidden'); $('empleadoView').classList.add('hidden'); renderEmpleador(); }
+  else { $('empleadoView').classList.remove('hidden'); $('empleadorView').classList.add('hidden'); renderEmpleado(); }
+}
+
+function parseMes(nombre){
+  const partes = String(nombre == null ? '' : nombre).trim().toUpperCase().split(/\s+/);
+  const mi = MESES.indexOf(partes[0]);
+  if (mi < 0) return null;
+  const y = parseInt(partes[1], 10);
+  return { nombre: partes.join(' '), mes: mi + 1, year: isNaN(y) ? 0 : y };
+}
+function yrOf(p){ return p.year === 0 ? Infinity : p.year; }
+function mesActualCompleto(){ return MESES[new Date().getMonth()] + ' ' + new Date().getFullYear(); }
+
+$('btnGoMonth').addEventListener('click', async () => {
+  const mi = $('newMonthSel').value;
+  const yr = $('newYearSel').value;
+  if (mi === '' || yr === '') { notify('Elige mes y año', 'err'); return; }
+  state.currentMonth = MESES[Number(mi)] + ' ' + yr;
+  await loadMonth(state.currentMonth);
+});
+$('btnViewToggle').addEventListener('click', () => {
+  state.view = state.view === 'tabla' ? 'resumen' : 'tabla';
+  $('btnViewToggle').textContent = state.view === 'tabla' ? 'Ver resumen mensual' : 'Ver registros';
+  renderContent();
+});
+$('btnAgregar').addEventListener('click', () => openModal('add'));
+$('btnCancel').addEventListener('click', () => $('modalOverlay').classList.add('hidden'));
+$('modalOverlay').addEventListener('click', e => { if (e.target === $('modalOverlay')) $('modalOverlay').classList.add('hidden'); });
+
+async function loadMonths(){
+  const r = await call(() => apiGet({ action:'months' }));
+  state.months = (r && r.ok) ? r.months : [];
+}
+
+function orderedMonths(){
+  const items = [];
+  state.months.forEach(m => { const p = parseMes(m); if (p) items.push({ name: m, mes: p.mes, year: p.year }); });
+  items.sort((a, b) => (yrOf(a) - yrOf(b)) || (a.mes - b.mes) || (a.name < b.name ? -1 : a.name > b.name ? 1 : 0));
+  const names = items.map(x => x.name);
+  const cur = state.currentMonth;
+  if (cur && names.indexOf(cur) === -1) {
+    const p = parseMes(cur);
+    let ins = false;
+    if (p) {
+      for (let i = 0; i < names.length; i++) {
+        const q = parseMes(names[i]);
+        if (q && ((yrOf(p) < yrOf(q)) || (yrOf(p) === yrOf(q) && p.mes < q.mes))) { names.splice(i, 0, cur); ins = true; break; }
+      }
+    }
+    if (!ins) names.push(cur);
+  }
+  return names;
+}
+
+function renderTabs(){
+  const wrap = $('monthTabs');
+  wrap.innerHTML = '';
+  orderedMonths().forEach(m => {
+    const exists = state.months.indexOf(m) !== -1;
+    const b = document.createElement('button');
+    b.className = 'tab' + (m === state.currentMonth ? ' active' : '');
+    b.dataset.mes = m;
+    b.innerHTML = exists ? esc(m) : (esc(m) + ' <span class="dot">•</span>');
+    wrap.appendChild(b);
+  });
+  wrap.querySelectorAll('.tab').forEach(b => b.addEventListener('click', () => {
+    if (b.dataset.mes !== state.currentMonth) { state.currentMonth = b.dataset.mes; loadMonth(b.dataset.mes); }
+  }));
+}
+
+function renderStatus(){
+  const bar = $('monthStatus');
+  const exists = state.months.indexOf(state.currentMonth) !== -1;
+  bar.innerHTML = '';
+  const lbl = document.createElement('div');
+  if (exists) {
+    lbl.innerHTML = '<span class="lbl">Pestaña:</span> <span class="strong">' + esc(state.currentMonth) + '</span> — <span class="lbl">' + state.data.length + ' registro(s)</span>';
+  } else {
+    lbl.innerHTML = '<span class="lbl">Pestaña:</span> <span class="strong">' + esc(state.currentMonth) + '</span> <span style="color:var(--danger);font-weight:700;"> no existe todavía</span>';
+    const btn = document.createElement('button');
+    btn.className = 'btn btn-primary';
+    btn.textContent = 'Crear pestaña ' + state.currentMonth;
+    btn.addEventListener('click', async () => {
+      btn.disabled = true;
+      const r = await call(() => apiPost({ action:'createMonth', mes: state.currentMonth, correo: session.correo }));
+      btn.disabled = false;
+      if (r && r.ok) { notify(r.message, 'ok'); await loadMonths(); renderTabs(); await loadMonth(state.currentMonth); }
+      else if (r) notify(r.message, 'err');
+    });
+    bar.appendChild(btn);
+  }
+  bar.appendChild(lbl);
+}
+
+async function loadMonth(mes){
+  state.currentMonth = mes;
+  renderTabs();
+  $('monthStatus').textContent = 'Cargando…';
+  const r = await call(() => apiGet({ action:'list', mes: mes }));
+  if (r && r.ok) { state.data = r.records || []; }
+  else { state.data = []; }
+  renderContent();
+}
+
+function renderContent(){
+  renderStatus();
+  if (state.view === 'resumen') renderResumen(); else renderTable();
+}
+
+function cellHtml(r, c){
+  const raw = r[c.k];
+  if (c.chip) return '<td>' + chip(raw) + '</td>';
+  if (c.money) return '<td class="num">' + (fmtMoney(raw) || '') + '</td>';
+  if (c.fmt === 'date') return '<td>' + fmtDate(raw) + '</td>';
+  if (c.num) return '<td class="num">' + esc(raw) + '</td>';
+  return '<td>' + esc(raw) + '</td>';
+}
+
+function tableHtml(rows, cols, opts){
+  opts = opts || {};
+  if (!rows.length) return '<div class="tbl-wrap"><div class="empty">' + (opts.empty || 'No hay registros.') + '</div></div>';
+  let html = '<div class="tbl-wrap"><table><thead><tr>';
+  cols.forEach(c => html += '<th class="' + (c.num ? 'num' : '') + '">' + esc(c.t || c.k) + '</th>');
+  if (opts.actions) html += '<th>Acciones</th>';
+  html += '</tr></thead><tbody>';
+  rows.forEach(r => {
+    html += '<tr>';
+    cols.forEach(c => html += cellHtml(r, c));
+    if (opts.actions) html += '<td><span class="lnk" data-edit="' + esc(String(r['ID'])) + '">Editar</span></td>';
+    html += '</tr>';
+  });
+  html += '</tbody></table></div>';
+  return html;
+}
+
+function renderTable(){
+  const wrap = $('empleadorContent');
+  wrap.innerHTML = tableHtml(state.data, COLS, { empty:'No hay servicios registrados en ' + esc(state.currentMonth) + '.', actions:true });
+  wrap.querySelectorAll('[data-edit]').forEach(a => a.addEventListener('click', () => openModal('edit', a.dataset.edit)));
+}
+
+function renderResumen(){
+  const wrap = $('empleadorContent');
+  const pagadas = state.data.filter(r => String(r['Estado Pago Factura'] || '').toUpperCase().trim() === 'PAGADA');
+  if (!pagadas.length) {
+    wrap.innerHTML = '<div class="tbl-wrap"><div class="empty">No hay servicios con factura PAGADA en ' + esc(state.currentMonth) + '.</div></div>';
+    return;
+  }
+  const tot = pagadas.reduce((s, r) => s + (Number(r['Comisión']) || 0), 0);
+  const porEmpresa = {};
+  pagadas.forEach(r => {
+    const e = String(r['Empresa'] || '').trim() || 'SIN EMPRESA';
+    porEmpresa[e] = (porEmpresa[e] || 0) + (Number(r['Comisión']) || 0);
+  });
+  let html = '<div class="totals-box"><strong>Resumen mensual ' + esc(state.currentMonth) + '</strong> — servicios con pago de factura PAGADA.<br>';
+  html += 'Total de comisiones a pagar a José: <span style="font-weight:700; color:var(--primary);">' + fmtMoney(tot) + '</span><br>';
+  html += Object.keys(porEmpresa).map(e => '  ' + esc(e) + ': ' + fmtMoney(porEmpresa[e])).join(' • ');
+  html += '</div>';
+  html += '<div class="tbl-wrap"><table><thead><tr>';
+  ['Empresa','Cliente','N° Factura','Valor Neto','% Comisión','Comisión','Estado Comisión'].forEach(h =>
+    html += '<th class="' + (h === 'Valor Neto' || h === '% Comisión' || h === 'Comisión' ? 'num' : '') + '">' + esc(h) + '</th>');
+  html += '</tr></thead><tbody>';
+  pagadas.forEach(r => {
+    html += '<tr>';
+    html += '<td>' + esc(r['Empresa']) + '</td>';
+    html += '<td>' + esc(r['Cliente']) + '</td>';
+    html += '<td>' + esc(r['N° Factura']) + '</td>';
+    html += '<td class="num">' + fmtMoney(r['Valor Neto']) + '</td>';
+    html += '<td class="num">' + esc(r['% Comisión']) + '</td>';
+    html += '<td class="num">' + fmtMoney(r['Comisión']) + '</td>';
+    html += '<td>' + chip(r['Estado Comisión']) + '</td>';
+    html += '</tr>';
+  });
+  html += '<tr><td colspan="5" style="text-align:right; font-weight:700;">Total comisiones:</td><td class="num" style="font-weight:700;">' + fmtMoney(tot) + '</td><td></td></tr>';
+  html += '</tbody></table></div>';
+  wrap.innerHTML = html;
+}
+
+function openModal(mode, id){
+  comisionManual = false;
+  $('modalTitle').textContent = mode === 'edit' ? 'Editar servicio' : 'Agregar servicio';
+  $('fId').value = '';
+  $('fEmpresa').value = 'SPA';
+  $('fCliente').value = '';
+  $('fOtin').value = ''; $('fGuia').value = ''; $('fOc').value = '';
+  $('fDesc').value = ''; $('fFactura').value = '';
+  $('fValorNeto').value = '';
+  $('fVenc').value = '';
+  $('fEstadoPago').value = 'PENDIENTE';
+  $('fFechaPago').value = '';
+  $('fPct').value = '8';
+  $('fComision').value = '';
+  $('fEstadoComision').value = 'PAGO FACT. PEND.';
+  $('fObs').value = '';
+  if (mode === 'edit' && id) {
+    const r = state.data.find(x => String(x['ID']) === String(id));
+    if (r) {
+      $('fId').value = String(r['ID']);
+      $('fEmpresa').value = (r['Empresa'] || 'SPA');
+      $('fCliente').value = r['Cliente'] || '';
+      $('fOtin').value = r['OTIN o N° Cotización'] || '';
+      $('fGuia').value = r['Guía'] || '';
+      $('fOc').value = r['OC'] || '';
+      $('fDesc').value = r['Descripción'] || '';
+      $('fFactura').value = r['N° Factura'] || '';
+      $('fValorNeto').value = r['Valor Neto'] || '';
+      $('fVenc').value = r['Fecha Vencimiento'] || '';
+      $('fEstadoPago').value = (r['Estado Pago Factura'] || 'PENDIENTE');
+      $('fFechaPago').value = r['Fecha Pago Factura'] || '';
+      $('fPct').value = (r['% Comisión'] !== '' && r['% Comisión'] != null) ? r['% Comisión'] : '8';
+      $('fComision').value = (r['Comisión'] !== '' && r['Comisión'] != null) ? r['Comisión'] : '';
+      $('fEstadoComision').value = (r['Estado Comisión'] || 'PAGO FACT. PEND.');
+      $('fObs').value = r['Observaciones'] || '';
+    }
+  }
+  $('modalOverlay').classList.remove('hidden');
+  setTimeout(() => $('fCliente').focus(), 50);
+}
+
+function recomputeComision(){
+  const vn = parseFloat($('fValorNeto').value);
+  const pct = parseFloat($('fPct').value);
+  if (!isNaN(vn) && !isNaN(pct)) {
+    $('fComision').value = Math.round(vn * pct / 100);
+  } else {
+    $('fComision').value = '';
+  }
+}
+$('fValorNeto').addEventListener('input', () => { if (!comisionManual) recomputeComision(); });
+$('fPct').addEventListener('input', () => { if (!comisionManual) recomputeComision(); });
+$('fComision').addEventListener('input', () => { comisionManual = true; });
+$('fEstadoPago').addEventListener('change', () => {
+  if ($('fEstadoPago').value === 'PAGADA' && !$('fFechaPago').value) {
+    const d = new Date();
+    $('fFechaPago').value = d.getFullYear() + '-' + String(d.getMonth()+1).padStart(2,'0') + '-' + String(d.getDate()).padStart(2,'0');
+  }
+});
+
+$('serviceForm').addEventListener('submit', async e => {
+  e.preventDefault();
+  const isEdit = !!$('fId').value;
+  if (!$('fCliente').value.trim()) { notify('El campo Cliente es obligatorio', 'err'); return; }
+  if ($('fValorNeto').value === '') { notify('El campo Valor Neto es obligatorio', 'err'); return; }
+  const rec = {};
+  rec['Empresa'] = $('fEmpresa').value;
+  rec['Cliente'] = $('fCliente').value;
+  rec['OTIN o N° Cotización'] = $('fOtin').value;
+  rec['Guía'] = $('fGuia').value;
+  rec['OC'] = $('fOc').value;
+  rec['Descripción'] = $('fDesc').value;
+  rec['N° Factura'] = $('fFactura').value;
+  rec['Valor Neto'] = $('fValorNeto').value;
+  rec['Fecha Vencimiento'] = $('fVenc').value;
+  rec['Estado Pago Factura'] = $('fEstadoPago').value;
+  rec['Fecha Pago Factura'] = $('fFechaPago').value;
+  rec['% Comisión'] = $('fPct').value;
+  rec['Comisión'] = $('fComision').value;
+  rec['Estado Comisión'] = $('fEstadoComision').value;
+  rec['Observaciones'] = $('fObs').value;
+  const btn = $('btnSave');
+  btn.disabled = true;
+  let r;
+  if (isEdit) {
+    r = await call(() => apiPost({ action:'edit', mes: state.currentMonth, id: $('fId').value, record: rec, correo: session.correo }));
+  } else {
+    r = await call(() => apiPost({ action:'add', mes: state.currentMonth, record: rec, correo: session.correo }));
+  }
+  btn.disabled = false;
+  if (r && r.ok) {
+    $('modalOverlay').classList.add('hidden');
+    notify(r.message, 'ok');
+    await loadMonths(); renderTabs();
+    await loadMonth(state.currentMonth);
+  } else if (r) {
+    notify(r.message, 'err');
+  }
+});
+
+async function renderEmpleador(){
+  state.currentMonth = state.currentMonth || mesActualCompleto();
+  await loadMonths();
+  renderTabs();
+  await loadMonth(state.currentMonth);
+}
+
+async function renderEmpleado(){
+  await loadMonths();
+  $('empCards').innerHTML = '<div class="empty">Cargando…</div>';
+  const results = await Promise.all(state.months.map(m => call(() => apiGet({ action:'list', mes: m }))));
+  const todos = [];
+  results.forEach((r, i) => {
+    if (r && r.ok) {
+      r.records.forEach(rec => { const c = Object.assign({}, rec); c.__mes = state.months[i] || ''; todos.push(c); });
+    }
+  });
+  state.empRows = todos;
+  renderEmpSummary();
+  renderEmpTable();
+}
+
+function renderEmpSummary(){
+  let pendiente = 0, paraPago = 0, pagado = 0, total = 0, porEmpresa = {}, pendPorEmpresa = {};
+  state.empRows.forEach(r => {
+    const vn = Number(r['Valor Neto']) || 0;
+    const com = Number(r['Comisión']) || 0;
+    const sp = String(r['Estado Pago Factura'] || '').toUpperCase().trim() === 'PAGADA';
+    const sc = String(r['Estado Comisión'] || '').toUpperCase().trim();
+    const emp = String(r['Empresa'] || '').trim() || 'SIN EMPRESA';
+    total += com;
+    if (!sp) { pendiente += vn; pendPorEmpresa[emp] = (pendPorEmpresa[emp] || 0) + vn; }
+    if (sc === 'PARA PAGO') paraPago += com;
+    if (sc === 'PAGADO') pagado += com;
+    porEmpresa[emp] = (porEmpresa[emp] || 0) + com;
+  });
+  const cards = [
+    { l:'Pendiente de cobro de factura', v: fmtMoney(pendiente) || '$0', s:'Suma de Valor Neto con factura no pagada' },
+    { l:'Comisiones PARA PAGO', v: fmtMoney(paraPago) || '$0', s:'Lo que te corresponde cobrar' },
+    { l:'Comisiones ya pagadas', v: fmtMoney(pagado) || '$0', s:'Estado Comisión = PAGADO' },
+    { l:'Total comisiones acumuladas', v: fmtMoney(total) || '$0', s:'Todos los registros' }
+  ];
+  $('empCards').innerHTML = cards.map(c =>
+    '<div class="card"><div class="label">' + c.l + '</div><div class="value">' + c.v + '</div><div class="sub">' + c.s + '</div></div>'
+  ).join('');
+  let html = '<strong>Comisiones por empresa:</strong> ';
+  html += Object.keys(porEmpresa).map(e => esc(e) + ': ' + fmtMoney(porEmpresa[e])).join(' • ') || '—';
+  html += '<br><strong>Pendiente de cobro por empresa:</strong> ';
+  html += Object.keys(pendPorEmpresa).map(e => esc(e) + ': ' + fmtMoney(pendPorEmpresa[e])).join(' • ') || '—';
+  html += '<br><em>Total de registros: ' + state.empRows.length + '</em>';
+  $('empTotals').innerHTML = html;
+}
+
+function renderEmpTable(){
+  const cols = [{ k:'__mes', t:'Mes' }].concat(COLS);
+  $('empTable').innerHTML = tableHtml(state.empRows, cols, { empty:'Aún no hay registros.' });
+}
+
+(function init(){
+  $('newMonthSel').innerHTML = '<option value="">Mes…</option>' + MESES.map((m, i) => '<option value="' + i + '">' + m + '</option>').join('');
+  const ysel = $('newYearSel');
+  const cy = new Date().getFullYear();
+  ysel.innerHTML = '';
+  for (let y = 2023; y <= cy + 2; y++) {
+    ysel.innerHTML += '<option value="' + y + '"' + (y === cy ? ' selected' : '') + '>' + y + '</option>';
+  }
+  const saved = localStorage.getItem('comisiones_session');
+  if (saved) {
+    try {
+      session = JSON.parse(saved);
+      if (session && session.correo) { showApp(); return; }
+    } catch (err) { /* sesión corrupta */ }
+    session = null;
+  }
+  showLogin();
+})();
+</script>
+</body>
+</html>
