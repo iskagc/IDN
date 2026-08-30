@@ -69,6 +69,7 @@
   td.num, th.num{text-align:right; white-space:nowrap;}
   .lnk{color:var(--primary); cursor:pointer; font-weight:600;}
   .lnk:hover{text-decoration:underline;}
+  .lnk.danger{color:var(--danger);}
 
   .chip{display:inline-block; padding:2px 10px; border-radius:12px; font-size:11px; font-weight:700; white-space:nowrap;}
   .chip.warn{background:#ffead6; color:#b05a0e;}
@@ -509,7 +510,7 @@ function tableHtml(rows, cols, opts){
   rows.forEach(r => {
     html += '<tr>';
     cols.forEach(c => html += cellHtml(r, c));
-    if (opts.actions) html += '<td><span class="lnk" data-edit="' + esc(String(r['ID'])) + '">Editar</span></td>';
+    if (opts.actions) html += '<td><span class="lnk" data-edit="' + esc(String(r['ID'])) + '">Editar</span> <span class="lnk danger" data-del="' + esc(String(r['ID'])) + '">Eliminar</span></td>';
     html += '</tr>';
   });
   html += '</tbody></table></div>';
@@ -520,6 +521,14 @@ function renderTable(){
   const wrap = $('appContent');
   wrap.innerHTML = tableHtml(state.data, COLS, { empty:'No hay servicios registrados en ' + esc(state.currentMonth) + '.', actions:true });
   wrap.querySelectorAll('[data-edit]').forEach(a => a.addEventListener('click', () => openModal('edit', a.dataset.edit)));
+  wrap.querySelectorAll('[data-del]').forEach(a => a.addEventListener('click', async () => {
+    const reg = state.data.find(x => String(x['ID']) === String(a.dataset.del));
+    const nombre = (reg && reg['Cliente']) ? ' de ' + reg['Cliente'] : '';
+    if (!confirm('¿Eliminar el servicio' + nombre + ' del mes ' + state.currentMonth + '? Esta acción no se puede deshacer.')) return;
+    const r = await call(() => apiPost({ action:'delete', mes: state.currentMonth, id: a.dataset.del, correo: session.correo }));
+    if (r && r.ok) { notify(r.message, 'ok'); await loadMonth(state.currentMonth); }
+    else if (r) notify(r.message, 'err');
+  }));
 }
 
 function renderResumen(){
