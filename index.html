@@ -79,7 +79,7 @@
   tr.grand-row td{background:#57CAA6; color:#fff; font-weight:800;}
   .check-row{display:flex; align-items:center; gap:8px; font-size:13px; font-weight:600; color:var(--text); cursor:pointer;}
   .check-row input{width:16px; height:16px; accent-color:var(--primary);}
-  .cot-row{display:grid; grid-template-columns:1.4fr 1.4fr 1.4fr 30px; gap:8px; align-items:end; margin-bottom:8px;}
+  .cot-row{display:grid; grid-template-columns:1.4fr 1.4fr 30px; gap:8px; align-items:end; margin-bottom:8px;}
   @media (max-width:720px){ .cot-row{grid-template-columns:1fr 1fr 30px;} }
   .imp-header{display:flex; align-items:center; gap:8px; font-size:13px; margin-top:12px;}
   .imp-header input{width:16px; height:16px; accent-color:var(--primary);}
@@ -165,7 +165,7 @@
         </div>
         <button class="btn btn-ghost" id="btnViewToggle">Ver resumen mensual</button>
         <button class="btn btn-ghost" id="btnImport">Importar CSV</button>
-        <button class="btn btn-primary" id="btnAgregar">+ Agregar servicio</button>
+        <button class="btn btn-primary" id="btnAgregar">+ Ingresar OC</button>
       </div>
     </div>
     <div class="status-bar" id="monthStatus"></div>
@@ -176,7 +176,7 @@
 
 <div class="overlay hidden" id="modalOverlay">
   <div class="modal">
-    <h2 id="modalTitle">Agregar servicio</h2>
+    <h2 id="modalTitle">Ingresar OC</h2>
     <form id="serviceForm" novalidate>
       <input type="hidden" id="fId">
       <div class="form-grid">
@@ -194,7 +194,6 @@
         <div class="field">
           <label>Interno o Externo</label>
           <select id="fInterExt">
-            <option value="">—</option>
             <option value="INTERNO">Interno</option>
             <option value="EXTERNO">Externo</option>
           </select>
@@ -209,12 +208,13 @@
           <input type="number" id="fDescuento" min="0" step="1" placeholder="0">
         </div>
         <div class="field full">
-          <label>N° Factura</label>
-          <input type="text" id="fFactura">
+          <label>OC (Orden de Compra) *</label>
+          <input type="text" id="fOC" placeholder="27349 o EFECTIVO">
+          <div class="helper">El ingreso se registra cuando llega la OC. La guía de despacho y la factura pueden llegar después.</div>
         </div>
         <div class="field full">
-          <label>Cotizaciones / Guías / OC de esta factura</label>
-          <div class="helper">Una factura puede tener varias cotizaciones. Agrega una fila por cotización con su(s) guía(s) y su orden de compra (o EFECTIVO si se pagó al contado).</div>
+          <label>Cotizaciones / Guías de esta OC</label>
+          <div class="helper">Una OC puede tener una o más cotizaciones. Cada cotización lleva su(s) guía(s) de despacho (si ya existe). Ej: 1 OC con 3 cotizaciones, 2 con la GD N° 100 y 1 con la GD N° 101.</div>
           <div id="cotRows"></div>
           <button type="button" class="btn btn-ghost" id="btnAddCot" style="margin-top:4px;">+ Agregar cotización</button>
         </div>
@@ -226,37 +226,43 @@
           <label>Valor Neto *</label>
           <input type="number" id="fValorNeto" min="0" step="1" required>
         </div>
-        <div class="field">
-          <label>Fecha Vencimiento</label>
-          <input type="date" id="fVenc">
-        </div>
-        <div class="field">
-          <label>Estado Pago Factura</label>
-          <select id="fEstadoPago">
-            <option value="PENDIENTE">PENDIENTE</option>
-            <option value="PAGADA">PAGADA</option>
-          </select>
-        </div>
-        <div class="field">
-          <label>Fecha Pago Factura</label>
-          <input type="date" id="fFechaPago">
-        </div>
-        <div class="field">
-          <label>% Comisión</label>
-          <input type="number" id="fPct" min="0" max="100" step="any" value="8">
-        </div>
-        <div class="field">
-          <label>Comisión</label>
-          <input type="number" id="fComision" min="0" step="any">
-          <div class="helper">Se calcula: Valor Neto × % / 100. Puedes sobrescribirlo.</div>
-        </div>
-        <div class="field">
-          <label>Estado Comisión</label>
-          <select id="fEstadoComision">
-            <option value="PAGO FACT. PEND.">PAGO FACT. PEND.</option>
-            <option value="PARA PAGO">PARA PAGO</option>
-            <option value="PAGADO">PAGADO</option>
-          </select>
+        <div id="facturaFields" class="form-grid" style="grid-column:1 / -1;">
+          <div class="field">
+            <label>N° Factura</label>
+            <input type="text" id="fFactura">
+          </div>
+          <div class="field">
+            <label>Fecha Vencimiento</label>
+            <input type="date" id="fVenc">
+          </div>
+          <div class="field">
+            <label>Estado Pago Factura</label>
+            <select id="fEstadoPago">
+              <option value="PENDIENTE">PENDIENTE</option>
+              <option value="PAGADA">PAGADA</option>
+            </select>
+          </div>
+          <div class="field">
+            <label>Fecha Pago Factura</label>
+            <input type="date" id="fFechaPago">
+          </div>
+          <div class="field">
+            <label>% Comisión</label>
+            <input type="number" id="fPct" min="0" max="100" step="any" value="8">
+          </div>
+          <div class="field">
+            <label>Comisión</label>
+            <input type="number" id="fComision" min="0" step="any">
+            <div class="helper">Se calcula: (Valor Neto − descuento) × % / 100. Puedes sobrescribirlo.</div>
+          </div>
+          <div class="field">
+            <label>Estado Comisión</label>
+            <select id="fEstadoComision">
+              <option value="PAGO FACT. PEND.">PAGO FACT. PEND.</option>
+              <option value="PARA PAGO">PARA PAGO</option>
+              <option value="PAGADO">PAGADO</option>
+            </select>
+          </div>
         </div>
         <div class="field full">
           <label>Observaciones</label>
@@ -271,6 +277,32 @@
   </div>
 </div>
 
+<div class="overlay hidden" id="facturaOverlay">
+  <div class="modal">
+    <h2>Generar factura</h2>
+    <div class="muted" id="fFactInfo" style="margin:8px 0 12px;"></div>
+    <div class="form-grid">
+      <div class="field">
+        <label>N° Factura *</label>
+        <input type="text" id="fFactNumero" placeholder="Ej: 1134">
+      </div>
+      <div class="field">
+        <label>Fecha Vencimiento *</label>
+        <input type="date" id="fFactVenc">
+      </div>
+      <div class="field">
+        <label>% Comisión</label>
+        <input type="number" id="fFactPct" min="0" max="100" step="any" value="8">
+      </div>
+    </div>
+    <div class="msg" id="fFactMsg"></div>
+    <div class="modal-foot">
+      <button type="button" class="btn btn-ghost" id="btnFactCancel">Cancelar</button>
+      <button type="button" class="btn btn-primary" id="btnFactRun">Generar factura para las OC seleccionadas</button>
+    </div>
+  </div>
+</div>
+
 <div class="overlay hidden" id="importOverlay">
   <div class="modal">
     <h2>Importar registros</h2>
@@ -278,7 +310,7 @@
       Pega aquí los datos copiados de Excel/CSV. La primera fila debe ser el encabezado con el nombre de cada columna.
       Columnas reconocidas: Empresa, Cliente, N° Cotización (o OTIN), Guía, OC, Descripción, N° Factura, Valor Neto,
       Fecha Vencimiento, Estado Pago Factura, Fecha Pago Factura, % Comisión, Comisión, Estado Comisión, Observaciones,
-      Interno o Externo, Descuento Tercerizado.
+      Interno o Externo, Descuento Tercerizado, Estado Facturación.
     </div>
     <div class="field">
       <label>Mes destino</label>
@@ -311,6 +343,7 @@ const COLS = [
   { k:'OC' },
   { k:'Descripción' },
   { k:'N° Factura' },
+  { k:'Estado Facturación', chip:true, t:'Facturación' },
   { k:'Valor Neto', num:true, money:true },
   { k:'Fecha Vencimiento', fmt:'date' },
   { k:'Estado Pago Factura', chip:true },
@@ -323,8 +356,14 @@ const COLS = [
 ];
 
 let session = null;
-let state = { months: [], currentMonth: '', data: [], view: 'tabla' };
+let state = { months: [], currentMonth: '', data: [], view: 'tabla', sel: new Set() };
 let comisionManual = false;
+
+function estFact(r){
+  const v = String(r['Estado Facturación'] || '').trim().toUpperCase();
+  if (v) return v;
+  return String(r['N° Factura'] || '').trim() ? 'FACTURADA' : 'SIN FACTURA';
+}
 
 const $ = id => document.getElementById(id);
 
@@ -347,6 +386,8 @@ function chip(t){
   let cls = 'warn';
   if (txt === 'PAGADA' || txt === 'PAGADO') cls = 'ok';
   if (txt === 'PARA PAGO') cls = 'info';
+  if (txt === 'FACTURADA') cls = 'ok';
+  if (txt === 'SIN FACTURA') cls = 'warn';
   return '<span class="chip ' + cls + '">' + esc(t) + '</span>';
 }
 function notify(msg, type){
@@ -435,12 +476,10 @@ function addCotRow(vals){
   row.className = 'cot-row';
   row.innerHTML =
     '<div class="field"><label>N° Cotización</label><input class="cot-cot" placeholder="1902"></div>' +
-    '<div class="field"><label>Guía(s)</label><input class="cot-gui" placeholder="1191, 1180"></div>' +
-    '<div class="field"><label>OC</label><input class="cot-oc" placeholder="27349 o EFECTIVO"></div>' +
+    '<div class="field"><label>Guía(s) de despacho</label><input class="cot-gui" placeholder="1191, 1180"></div>' +
     '<button type="button" class="btn btn-ghost cot-del" title="Quitar" style="padding:6px 8px;">Quitar</button>';
   row.querySelector('.cot-cot').value = vals.cot || '';
   row.querySelector('.cot-gui').value = vals.gui || '';
-  row.querySelector('.cot-oc').value = vals.oc || '';
   row.querySelector('.cot-del').addEventListener('click', () => { if (row.parentNode) row.parentNode.removeChild(row); });
   $('cotRows').appendChild(row);
 }
@@ -449,9 +488,8 @@ function getCotRows(){
   $('cotRows').querySelectorAll('.cot-row').forEach(r => {
     const cot = r.querySelector('.cot-cot').value.trim();
     const gui = r.querySelector('.cot-gui').value.trim();
-    const oc = r.querySelector('.cot-oc').value.trim();
-    if (!cot && !gui && !oc) return;
-    arr.push({ cot: cot, gui: gui, oc: oc });
+    if (!cot && !gui) return;
+    arr.push({ cot: cot, gui: gui });
   });
   return arr;
 }
@@ -486,6 +524,9 @@ const IMP_ALIASES = [
   ['OC','OC'],
   ['DESCRIPCION','Descripción'],
   ['FACTURA','N° Factura'],
+  ['ESTADO FACTURACION','Estado Facturación'],
+  ['FACTURACION','Estado Facturación'],
+  ['FASE FACTURACION','Estado Facturación'],
   ['VALOR NETO FACTURA','Valor Neto'],
   ['VALOR NETO','Valor Neto'],
   ['NETO','Valor Neto'],
@@ -502,7 +543,7 @@ const IMP_ALIASES = [
   ['DESCUENTO TERCERIZADO','Descuento Tercerizado'],
   ['DESCUENTO','Descuento Tercerizado']
 ];
-const IMP_ORDER = ['Empresa','Cliente','OTIN o N° Cotización','Guía','OC','Descripción','N° Factura','Valor Neto','Fecha Vencimiento','Estado Pago Factura','Fecha Pago Factura','% Comisión','Comisión','Estado Comisión','Observaciones','Interno o Externo','Descuento Tercerizado'];
+const IMP_ORDER = ['Empresa','Cliente','OTIN o N° Cotización','Guía','OC','Descripción','N° Factura','Estado Facturación','Valor Neto','Fecha Vencimiento','Estado Pago Factura','Fecha Pago Factura','% Comisión','Comisión','Estado Comisión','Observaciones','Interno o Externo','Descuento Tercerizado'];
 
 function impNorm(s){
   return String(s == null ? '' : s).normalize('NFD').replace(/[\u0300-\u036f]/g, '').toUpperCase().replace(/[^A-Z0-9]/g, ' ');
@@ -600,6 +641,11 @@ function csvToRecords(rows, hasHeader){
     if (rec['Fecha Pago Factura'] !== undefined) rec['Fecha Pago Factura'] = impDate(rec['Fecha Pago Factura']);
     if (rec['Estado Pago Factura'] !== undefined) rec['Estado Pago Factura'] = impEstadoFactura(rec['Estado Pago Factura']);
     if (rec['Estado Comisión'] !== undefined) rec['Estado Comisión'] = impEstadoComision(rec['Estado Comisión']);
+    if (rec['Estado Facturación'] !== undefined) {
+      const fx = String(rec['Estado Facturación']).trim().toUpperCase();
+      rec['Estado Facturación'] = (fx && fx.indexOf('FACTURA') !== -1) ? 'FACTURADA' : 'SIN FACTURA';
+    }
+    if (!rec['Estado Facturación']) rec['Estado Facturación'] = String(rec['N° Factura'] || '').trim() ? 'FACTURADA' : 'SIN FACTURA';
     records.push(rec);
   }
   return records;
@@ -637,6 +683,59 @@ $('btnImpRun').addEventListener('click', async () => {
     msg.textContent = r.message; msg.className = 'msg err';
   }
 });
+
+function openFacturaModal(){
+  const ids = Array.from(state.sel);
+  const rows = state.data.filter(x => ids.indexOf(String(x['ID'])) !== -1);
+  if (!rows.length) { notify('No hay OCs seleccionadas.', 'err'); return; }
+  const { base, des, pct } = summaryFact();
+  $('fFactInfo').innerHTML = rows.length + ' OC seleccionada(s) — Base comisión: <strong>' + fmtMoney(base) + '</strong>' +
+    (des > 0 ? ' (descuento tercerizado <strong>' + fmtMoney(des) + '</strong>)' : '') +
+    '. Comisión estimada: <strong>' + fmtMoney(base * pct / 100) + '</strong> al ' + pct + '%.';
+  const today = new Date();
+  $('fFactVenc').value = today.getFullYear() + '-' + String(today.getMonth()+1).padStart(2,'0') + '-' + String(today.getDate()).padStart(2,'0');
+  $('fFactPct').value = '8';
+  $('fFactNumero').value = '';
+  $('fFactMsg').textContent = ''; $('fFactMsg').className = 'msg';
+  $('facturaOverlay').classList.remove('hidden');
+  $('fFactNumero').focus();
+}
+
+$('btnFactCancel').addEventListener('click', () => $('facturaOverlay').classList.add('hidden'));
+$('facturaOverlay').addEventListener('click', e => { if (e.target === $('facturaOverlay')) $('facturaOverlay').classList.add('hidden'); });
+
+$('btnFactRun').addEventListener('click', async () => {
+  const msg = $('fFactMsg');
+  msg.textContent = ''; msg.className = 'msg';
+  const numero = $('fFactNumero').value.trim();
+  const venc = $('fFactVenc').value;
+  if (!numero) { msg.textContent = 'Indica el N° de factura.'; msg.className = 'msg err'; return; }
+  if (!venc) { msg.textContent = 'Indica la fecha de vencimiento.'; msg.className = 'msg err'; return; }
+  const p = parseFloat($('fFactPct').value);
+  if (isNaN(p) || p < 0 || p > 100) { msg.textContent = '% Comisión inválido.'; msg.className = 'msg err'; return; }
+  const ids = Array.from(state.sel);
+  if (!ids.length) { msg.textContent = 'No hay OCs seleccionadas.'; msg.className = 'msg err'; return; }
+  const btn = $('btnFactRun'); btn.disabled = true;
+  const r = await call(() => apiPost({ action:'facturar', mes: state.currentMonth, ids: ids, factura: { numero: numero, pct: p, fechaVencimiento: venc }, correo: session.correo }));
+  btn.disabled = false;
+  if (r && r.ok) {
+    $('facturaOverlay').classList.add('hidden');
+    notify(r.message, 'ok');
+    state.sel.clear();
+    await loadMonth(state.currentMonth);
+  } else if (r) {
+    msg.textContent = r.message; msg.className = 'msg err';
+  }
+});
+
+function summaryFact(){
+  const ids = Array.from(state.sel);
+  const rows = state.data.filter(x => ids.indexOf(String(x['ID'])) !== -1);
+  let base = 0, des = 0;
+  rows.forEach(r => { base += Number(r['Valor Neto']) || 0; des += Number(r['Descuento Tercerizado']) || 0; });
+  const nums = rows.map(r => parseFloat(String(r['% Comisión'] || '8'))).filter(n => !isNaN(n));
+  return { base: base, des: des, pct: nums.length ? nums[0] : 8 };
+}
 
 async function loadMonths(){
   const r = await call(() => apiGet({ action:'months' }));
@@ -681,6 +780,13 @@ function renderStatus(){
   const lbl = document.createElement('div');
   if (exists) {
     lbl.innerHTML = '<span class="lbl">Pestaña:</span> <span class="strong">' + esc(state.currentMonth) + '</span> — <span class="lbl">' + state.data.length + ' registro(s)</span>';
+    if (state.sel.size > 0) {
+      const facBtn = document.createElement('button');
+      facBtn.className = 'btn btn-primary';
+      facBtn.textContent = 'Facturar ' + state.sel.size + ' OC';
+      facBtn.addEventListener('click', () => openFacturaModal());
+      bar.appendChild(facBtn);
+    }
     const delBtn = document.createElement('button');
     delBtn.className = 'btn btn-danger';
     delBtn.textContent = 'Eliminar mes';
@@ -720,6 +826,7 @@ function renderStatus(){
 
 async function loadMonth(mes){
   state.currentMonth = mes;
+  state.sel.clear();
   renderTabs();
   $('monthStatus').textContent = 'Cargando…';
   const r = await call(() => apiGet({ action:'list', mes: mes }));
@@ -791,6 +898,8 @@ function renderTable(){
     bindTableActions(wrap);
     return;
   }
+  const hasSel = state.data.some(r => estFact(r) !== 'FACTURADA');
+  const selOff = hasSel ? 1 : 0;
   const grouped = {};
   state.data.forEach(r => {
     const e = String(r['Empresa'] || '').trim() || 'SIN EMPRESA';
@@ -800,9 +909,9 @@ function renderTable(){
   const order = Object.keys(grouped).sort((a, b) =>
     (rank[a] !== undefined || rank[b] !== undefined) ? ((rank[a] === undefined ? 2 : rank[a]) - (rank[b] === undefined ? 2 : rank[b])) : a.localeCompare(b));
 
-  const iv = COLS.findIndex(c => c.k === 'Valor Neto');
-  const ic = COLS.findIndex(c => c.k === 'Comisión');
-  const ncols = COLS.length + 1;
+  const iv = COLS.findIndex(c => c.k === 'Valor Neto') + selOff;
+  const ic = COLS.findIndex(c => c.k === 'Comisión') + selOff;
+  const ncols = COLS.length + 1 + selOff;
   const sum = (rs, k) => rs.reduce((s, r) => s + (Number(r[k]) || 0), 0);
   function totRow(cls, label, rs){
     return '<tr class="' + cls + '"><td colspan="' + iv + '">' + label + '</td>' +
@@ -813,14 +922,20 @@ function renderTable(){
   }
 
   let html = '<div class="tbl-wrap"><table><thead><tr>';
+  if (hasSel) html += '<th class="num" style="width:36px;">Sel</th>';
   COLS.forEach(c => html += '<th class="' + (c.num ? 'num' : '') + '">' + esc(c.t || c.k) + '</th>');
   html += '<th>Acciones</th></tr></thead><tbody>';
   order.forEach(e => {
     const rows = grouped[e];
-    html += '<tr class="sec-row"><td colspan="' + ncols + '">' + esc(e) + ' — ' + rows.length + ' registro(s)</td></tr>';
+    html += '<tr class="sec-row"><td colspan="' + (hasSel ? ncols : ncols) + '">' + esc(e) + ' — ' + rows.length + ' registro(s)</td></tr>';
     rows.forEach(r => {
       const cobrada = String(r['Estado Pago Factura'] || '').toUpperCase().trim() === 'PAGADA';
       html += '<tr' + (cobrada ? ' class="row-cobrada"' : '') + '>';
+      if (hasSel) {
+        const fact = estFact(r);
+        const id = String(r['ID']);
+        html += '<td class="num">' + (fact !== 'FACTURADA' ? '<input type="checkbox" class="selbox" data-sel="' + esc(id) + '"' + (state.sel.has(id) ? ' checked' : '') + '>' : '') + '</td>';
+      }
       COLS.forEach(c => html += cellHtml(r, c));
       html += '<td><span class="lnk" data-edit="' + esc(String(r['ID'])) + '">Editar</span> <span class="lnk danger" data-del="' + esc(String(r['ID'])) + '">Eliminar</span></td>';
       html += '</tr>';
@@ -842,6 +957,11 @@ function bindTableActions(wrap){
     const r = await call(() => apiPost({ action:'delete', mes: state.currentMonth, id: a.dataset.del, correo: session.correo }));
     if (r && r.ok) { notify(r.message, 'ok'); await loadMonth(state.currentMonth); }
     else if (r) notify(r.message, 'err');
+  }));
+  wrap.querySelectorAll('.selbox').forEach(b => b.addEventListener('change', () => {
+    const id = b.dataset.sel;
+    if (b.checked) state.sel.add(id); else state.sel.delete(id);
+    renderStatus();
   }));
 }
 
@@ -884,16 +1004,18 @@ function renderResumen(){
 
 function openModal(mode, id){
   comisionManual = false;
-  $('modalTitle').textContent = mode === 'edit' ? 'Editar servicio' : 'Agregar servicio';
+  const isEditMode = mode === 'edit';
+  $('modalTitle').textContent = isEditMode ? 'Editar OC' : 'Ingresar OC';
   $('fId').value = '';
   $('fEmpresa').value = localStorage.getItem('comisiones_empresa') || 'SPA';
   $('fCliente').value = '';
-  $('fInterExt').value = '';
+  $('fInterExt').value = 'INTERNO';
   $('fTercerizado').checked = false;
   $('fDescuentoField').classList.add('hidden');
   $('fDescuento').value = '';
   $('cotRows').innerHTML = '';
   addCotRow();
+  $('fOC').value = '';
   $('fDesc').value = ''; $('fFactura').value = '';
   $('fValorNeto').value = '';
   $('fVenc').value = '';
@@ -903,13 +1025,14 @@ function openModal(mode, id){
   $('fComision').value = '';
   $('fEstadoComision').value = 'PAGO FACT. PEND.';
   $('fObs').value = '';
+  $('facturaFields').classList.toggle('hidden', !isEditMode);
   if (mode === 'edit' && id) {
     const r = state.data.find(x => String(x['ID']) === String(id));
     if (r) {
       $('fId').value = String(r['ID']);
       $('fEmpresa').value = (r['Empresa'] || 'SPA');
       $('fCliente').value = r['Cliente'] || '';
-      $('fInterExt').value = (r['Interno o Externo'] || '');
+      $('fInterExt').value = String(r['Interno o Externo'] || 'INTERNO').toUpperCase();
       const des = Number(r['Descuento Tercerizado']) || 0;
       if (des > 0) {
         $('fTercerizado').checked = true;
@@ -919,9 +1042,9 @@ function openModal(mode, id){
       $('cotRows').innerHTML = '';
       const cots = splitList(r['OTIN o N° Cotización']);
       const guis = splitList(r['Guía']);
-      const ocs = splitList(r['OC']);
-      const len = Math.max(cots.length, guis.length, ocs.length, 1);
-      for (let i = 0; i < len; i++) addCotRow({ cot: cots[i] || '', gui: guis[i] || '', oc: ocs[i] || '' });
+      const len = Math.max(cots.length, guis.length, 1);
+      for (let i = 0; i < len; i++) addCotRow({ cot: cots[i] || '', gui: guis[i] || '' });
+      $('fOC').value = r['OC'] || '';
       $('fDesc').value = r['Descripción'] || '';
       $('fFactura').value = r['N° Factura'] || '';
       $('fValorNeto').value = r['Valor Neto'] || '';
@@ -969,16 +1092,19 @@ $('serviceForm').addEventListener('submit', async e => {
   e.preventDefault();
   const isEdit = !!$('fId').value;
   if (!$('fCliente').value.trim()) { notify('El campo Cliente es obligatorio', 'err'); return; }
+  if (!$('fOC').value.trim()) { notify('El campo OC es obligatorio', 'err'); return; }
   if ($('fValorNeto').value === '') { notify('El campo Valor Neto es obligatorio', 'err'); return; }
   const rec = {};
   rec['Empresa'] = $('fEmpresa').value;
+  rec['Interno o Externo'] = $('fInterExt').value;
   rec['Cliente'] = $('fCliente').value;
+  rec['OC'] = $('fOC').value;
   const cots = getCotRows();
   rec['OTIN o N° Cotización'] = joinList(cots.map(x => x.cot));
   rec['Guía'] = joinList(cots.map(x => x.gui));
-  rec['OC'] = joinList(cots.map(x => x.oc));
   rec['Descripción'] = $('fDesc').value;
   rec['N° Factura'] = $('fFactura').value;
+  rec['Estado Facturación'] = rec['N° Factura'].trim() ? 'FACTURADA' : 'SIN FACTURA';
   rec['Valor Neto'] = $('fValorNeto').value;
   rec['Fecha Vencimiento'] = $('fVenc').value;
   rec['Estado Pago Factura'] = $('fEstadoPago').value;
@@ -987,7 +1113,6 @@ $('serviceForm').addEventListener('submit', async e => {
   rec['Comisión'] = comisionManual ? $('fComision').value : '';
   rec['Estado Comisión'] = $('fEstadoComision').value;
   rec['Observaciones'] = $('fObs').value;
-  rec['Interno o Externo'] = $('fInterExt').value;
   rec['Descuento Tercerizado'] = $('fTercerizado').checked ? $('fDescuento').value : '';
   localStorage.setItem('comisiones_empresa', rec['Empresa']);
   const btn = $('btnSave');
