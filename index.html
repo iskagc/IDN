@@ -73,6 +73,18 @@
 
   tr.row-cobrada{background:#e3f6ed;}
   tr.row-cobrada:hover{background:#d3efe2;}
+  tr.liq-ENERO{background:rgba(231,76,60,.18);} tr.liq-ENERO.liq-pagada{background:rgba(231,76,60,.07);}
+  tr.liq-FEBRERO{background:rgba(230,126,34,.18);} tr.liq-FEBRERO.liq-pagada{background:rgba(230,126,34,.07);}
+  tr.liq-MARZO{background:rgba(241,196,15,.18);} tr.liq-MARZO.liq-pagada{background:rgba(241,196,15,.07);}
+  tr.liq-ABRIL{background:rgba(46,204,113,.18);} tr.liq-ABRIL.liq-pagada{background:rgba(46,204,113,.07);}
+  tr.liq-MAYO{background:rgba(26,188,156,.18);} tr.liq-MAYO.liq-pagada{background:rgba(26,188,156,.07);}
+  tr.liq-JUNIO{background:rgba(52,152,219,.18);} tr.liq-JUNIO.liq-pagada{background:rgba(52,152,219,.07);}
+  tr.liq-JULIO{background:rgba(155,89,182,.18);} tr.liq-JULIO.liq-pagada{background:rgba(155,89,182,.07);}
+  tr.liq-AGOSTO{background:rgba(233,30,99,.18);} tr.liq-AGOSTO.liq-pagada{background:rgba(233,30,99,.07);}
+  tr.liq-SEPTIEMBRE{background:rgba(0,188,212,.18);} tr.liq-SEPTIEMBRE.liq-pagada{background:rgba(0,188,212,.07);}
+  tr.liq-OCTUBRE{background:rgba(255,87,34,.18);} tr.liq-OCTUBRE.liq-pagada{background:rgba(255,87,34,.07);}
+  tr.liq-NOVIEMBRE{background:rgba(121,85,72,.18);} tr.liq-NOVIEMBRE.liq-pagada{background:rgba(121,85,72,.07);}
+  tr.liq-DICIEMBRE{background:rgba(96,125,139,.18);} tr.liq-DICIEMBRE.liq-pagada{background:rgba(96,125,139,.07);}
   tr.sec-row td{background:#f0f4fa; font-weight:800; letter-spacing:.5px; text-transform:uppercase; font-size:12px;}
   tr.sec-row td .sec-chip{color:var(--primary); margin-right:6px;}
   tr.tot-row td{background:#fff3e4; font-weight:800;}
@@ -263,6 +275,25 @@
               <option value="PAGADO">PAGADO</option>
             </select>
           </div>
+          <div class="field">
+            <label>Mes Liquidación</label>
+            <select id="fMesLiq">
+              <option value="">—</option>
+              <option value="ENERO">ENERO</option>
+              <option value="FEBRERO">FEBRERO</option>
+              <option value="MARZO">MARZO</option>
+              <option value="ABRIL">ABRIL</option>
+              <option value="MAYO">MAYO</option>
+              <option value="JUNIO">JUNIO</option>
+              <option value="JULIO">JULIO</option>
+              <option value="AGOSTO">AGOSTO</option>
+              <option value="SEPTIEMBRE">SEPTIEMBRE</option>
+              <option value="OCTUBRE">OCTUBRE</option>
+              <option value="NOVIEMBRE">NOVIEMBRE</option>
+              <option value="DICIEMBRE">DICIEMBRE</option>
+            </select>
+            <div class="helper">Mes en la liquidación en que se pagará la comisión.</div>
+          </div>
         </div>
         <div class="field full">
           <label>Observaciones</label>
@@ -294,6 +325,24 @@
         <label>% Comisión</label>
         <input type="number" id="fFactPct" min="0" max="100" step="any" value="8">
       </div>
+      <div class="field">
+        <label>Mes Liquidación</label>
+        <select id="fFactMesLiq">
+          <option value="">—</option>
+          <option value="ENERO">ENERO</option>
+          <option value="FEBRERO">FEBRERO</option>
+          <option value="MARZO">MARZO</option>
+          <option value="ABRIL">ABRIL</option>
+          <option value="MAYO">MAYO</option>
+          <option value="JUNIO">JUNIO</option>
+          <option value="JULIO">JULIO</option>
+          <option value="AGOSTO">AGOSTO</option>
+          <option value="SEPTIEMBRE">SEPTIEMBRE</option>
+          <option value="OCTUBRE">OCTUBRE</option>
+          <option value="NOVIEMBRE">NOVIEMBRE</option>
+          <option value="DICIEMBRE">DICIEMBRE</option>
+        </select>
+      </div>
     </div>
     <div class="msg" id="fFactMsg"></div>
     <div class="modal-foot">
@@ -310,7 +359,7 @@
       Pega aquí los datos copiados de Excel/CSV. La primera fila debe ser el encabezado con el nombre de cada columna.
       Columnas reconocidas: Empresa, Cliente, N° Cotización (o OTIN), Guía, OC, Descripción, N° Factura, Valor Neto,
       Fecha Vencimiento, Estado Pago Factura, Fecha Pago Factura, % Comisión, Comisión, Estado Comisión, Observaciones,
-      Interno o Externo, Descuento Tercerizado, Estado Facturación.
+      Interno o Externo, Descuento Tercerizado, Estado Facturación, Mes Liquidación.
     </div>
     <div class="field">
       <label>Mes destino</label>
@@ -351,6 +400,7 @@ const COLS = [
   { k:'% Comisión', num:true },
   { k:'Comisión', num:true, money:true },
   { k:'Estado Comisión', chip:true },
+  { k:'Mes Liquidación', chip:true, t:'Liq.' },
   { k:'Observaciones' },
   { k:'Ingresado Por' }
 ];
@@ -360,9 +410,10 @@ let state = { months: [], currentMonth: '', data: [], view: 'tabla', sel: new Se
 let comisionManual = false;
 
 function estFact(r){
+  const hasInvoice = String(r['N° Factura'] || '').trim() !== '';
+  if (!hasInvoice) return 'SIN FACTURA';
   const v = String(r['Estado Facturación'] || '').trim().toUpperCase();
-  if (v) return v;
-  return String(r['N° Factura'] || '').trim() ? 'FACTURADA' : 'SIN FACTURA';
+  return v || 'FACTURADA';
 }
 
 const $ = id => document.getElementById(id);
@@ -383,6 +434,12 @@ function fmtDate(s){
 function chip(t){
   const txt = String(t || '').toUpperCase().trim();
   if (!txt) return '';
+  const MONTH_CHIPS = {
+    'ENERO':'#e74c3c','FEBRERO':'#e67e22','MARZO':'#f1c40f','ABRIL':'#2ecc71',
+    'MAYO':'#1abc9c','JUNIO':'#3498db','JULIO':'#9b59b6','AGOSTO':'#e91e63',
+    'SEPTIEMBRE':'#00bcd4','OCTUBRE':'#ff5722','NOVIEMBRE':'#795548','DICIEMBRE':'#607d8b'
+  };
+  if (MONTH_CHIPS[txt]) return '<span class="chip" style="background:' + MONTH_CHIPS[txt] + ';color:#fff;">' + esc(t) + '</span>';
   let cls = 'warn';
   if (txt === 'PAGADA' || txt === 'PAGADO') cls = 'ok';
   if (txt === 'PARA PAGO') cls = 'info';
@@ -502,8 +559,11 @@ $('btnGoMonth').addEventListener('click', async () => {
   await loadMonth(state.currentMonth);
 });
 $('btnViewToggle').addEventListener('click', () => {
-  state.view = state.view === 'tabla' ? 'resumen' : 'tabla';
-  $('btnViewToggle').textContent = state.view === 'tabla' ? 'Ver resumen mensual' : 'Ver registros';
+  const views = ['tabla','resumen','liq'];
+  const idx = views.indexOf(state.view);
+  state.view = views[(idx + 1) % views.length];
+  const labels = { tabla:'Ver resumen mensual', resumen:'Ver Liq.', liq:'Ver registros' };
+  $('btnViewToggle').textContent = labels[state.view];
   renderContent();
 });
 $('btnAgregar').addEventListener('click', () => openModal('add'));
@@ -541,9 +601,12 @@ const IMP_ALIASES = [
   ['COMISION','Comisión'],
   ['OBSERVACIONES','Observaciones'],
   ['DESCUENTO TERCERIZADO','Descuento Tercerizado'],
-  ['DESCUENTO','Descuento Tercerizado']
+  ['DESCUENTO','Descuento Tercerizado'],
+  ['MES LIQUIDACION','Mes Liquidación'],
+  ['LIQUIDACION','Mes Liquidación'],
+  ['LIQ','Mes Liquidación']
 ];
-const IMP_ORDER = ['Empresa','Cliente','OTIN o N° Cotización','Guía','OC','Descripción','N° Factura','Estado Facturación','Valor Neto','Fecha Vencimiento','Estado Pago Factura','Fecha Pago Factura','% Comisión','Comisión','Estado Comisión','Observaciones','Interno o Externo','Descuento Tercerizado'];
+const IMP_ORDER = ['Empresa','Cliente','OTIN o N° Cotización','Guía','OC','Descripción','N° Factura','Estado Facturación','Valor Neto','Fecha Vencimiento','Estado Pago Factura','Fecha Pago Factura','% Comisión','Comisión','Estado Comisión','Mes Liquidación','Observaciones','Interno o Externo','Descuento Tercerizado'];
 
 function impNorm(s){
   return String(s == null ? '' : s).normalize('NFD').replace(/[\u0300-\u036f]/g, '').toUpperCase().replace(/[^A-Z0-9]/g, ' ');
@@ -643,7 +706,8 @@ function csvToRecords(rows, hasHeader){
     if (rec['Estado Comisión'] !== undefined) rec['Estado Comisión'] = impEstadoComision(rec['Estado Comisión']);
     if (rec['Estado Facturación'] !== undefined) {
       const fx = String(rec['Estado Facturación']).trim().toUpperCase();
-      rec['Estado Facturación'] = (fx && fx.indexOf('FACTURA') !== -1) ? 'FACTURADA' : 'SIN FACTURA';
+      const hasInv = String(rec['N° Factura'] || '').trim() !== '';
+      rec['Estado Facturación'] = hasInv ? ((fx && fx.indexOf('FACTURA') !== -1) ? 'FACTURADA' : 'SIN FACTURA') : 'SIN FACTURA';
     }
     if (!rec['Estado Facturación']) rec['Estado Facturación'] = String(rec['N° Factura'] || '').trim() ? 'FACTURADA' : 'SIN FACTURA';
     records.push(rec);
@@ -695,6 +759,7 @@ function openFacturaModal(){
   const today = new Date();
   $('fFactVenc').value = today.getFullYear() + '-' + String(today.getMonth()+1).padStart(2,'0') + '-' + String(today.getDate()).padStart(2,'0');
   $('fFactPct').value = '8';
+  $('fFactMesLiq').value = '';
   $('fFactNumero').value = '';
   $('fFactMsg').textContent = ''; $('fFactMsg').className = 'msg';
   $('facturaOverlay').classList.remove('hidden');
@@ -716,7 +781,7 @@ $('btnFactRun').addEventListener('click', async () => {
   const ids = Array.from(state.sel);
   if (!ids.length) { msg.textContent = 'No hay OCs seleccionadas.'; msg.className = 'msg err'; return; }
   const btn = $('btnFactRun'); btn.disabled = true;
-  const r = await call(() => apiPost({ action:'facturar', mes: state.currentMonth, ids: ids, factura: { numero: numero, pct: p, fechaVencimiento: venc }, correo: session.correo }));
+  const r = await call(() => apiPost({ action:'facturar', mes: state.currentMonth, ids: ids, factura: { numero: numero, pct: p, fechaVencimiento: venc, mesLiq: $('fFactMesLiq').value }, correo: session.correo }));
   btn.disabled = false;
   if (r && r.ok) {
     $('facturaOverlay').classList.add('hidden');
@@ -838,7 +903,9 @@ async function loadMonth(mes){
 
 function renderContent(){
   renderStatus();
-  if (state.view === 'resumen') renderResumen(); else renderTable();
+  if (state.view === 'resumen') renderResumen();
+  else if (state.view === 'liq') renderLiq();
+  else renderTable();
 }
 
 function renderCards(){
@@ -846,7 +913,8 @@ function renderCards(){
   state.data.forEach(r => {
     const vn = Number(r['Valor Neto']) || 0;
     const com = Number(r['Comisión']) || 0;
-    const sp = String(r['Estado Pago Factura'] || '').toUpperCase().trim() === 'PAGADA';
+    const hasInvoice = String(r['N° Factura'] || '').trim() !== '';
+    const sp = hasInvoice && String(r['Estado Pago Factura'] || '').toUpperCase().trim() === 'PAGADA';
     const sc = String(r['Estado Comisión'] || '').toUpperCase().trim();
     total += com;
     if (sp) cobrado += vn; else pendiente += vn;
@@ -928,9 +996,11 @@ function renderTable(){
   order.forEach(e => {
     const rows = grouped[e];
     html += '<tr class="sec-row"><td colspan="' + (hasSel ? ncols : ncols) + '">' + esc(e) + ' — ' + rows.length + ' registro(s)</td></tr>';
-    rows.forEach(r => {
+        rows.forEach(r => {
       const cobrada = String(r['Estado Pago Factura'] || '').toUpperCase().trim() === 'PAGADA';
-      html += '<tr' + (cobrada ? ' class="row-cobrada"' : '') + '>';
+      const liq = String(r['Mes Liquidación'] || '').toUpperCase().trim();
+      const liqCls = liq ? ' liq-' + liq + (cobrada ? ' liq-pagada' : '') : '';
+      html += '<tr class="' + (liq ? liqCls : (cobrada ? 'row-cobrada' : '')) + '">';
       if (hasSel) {
         const fact = estFact(r);
         const id = String(r['ID']);
@@ -967,7 +1037,7 @@ function bindTableActions(wrap){
 
 function renderResumen(){
   const wrap = $('appContent');
-  const pagadas = state.data.filter(r => String(r['Estado Pago Factura'] || '').toUpperCase().trim() === 'PAGADA');
+  const pagadas = state.data.filter(r => String(r['N° Factura'] || '').trim() && String(r['Estado Pago Factura'] || '').toUpperCase().trim() === 'PAGADA');
   if (!pagadas.length) {
     wrap.innerHTML = '<div class="tbl-wrap"><div class="empty">No hay servicios con factura PAGADA en ' + esc(state.currentMonth) + '.</div></div>';
     return;
@@ -983,7 +1053,7 @@ function renderResumen(){
   html += Object.keys(porEmpresa).map(e => '  ' + esc(e) + ': ' + fmtMoney(porEmpresa[e])).join(' • ');
   html += '</div>';
   html += '<div class="tbl-wrap"><table><thead><tr>';
-  ['Empresa','Cliente','N° Factura','Valor Neto','% Comisión','Comisión','Estado Comisión'].forEach(h =>
+  ['Empresa','Cliente','N° Factura','Valor Neto','% Comisión','Comisión','Liq.','Estado Comisión'].forEach(h =>
     html += '<th class="' + (h === 'Valor Neto' || h === '% Comisión' || h === 'Comisión' ? 'num' : '') + '">' + esc(h) + '</th>');
   html += '</tr></thead><tbody>';
   pagadas.forEach(r => {
@@ -994,11 +1064,66 @@ function renderResumen(){
     html += '<td class="num">' + fmtMoney(r['Valor Neto']) + '</td>';
     html += '<td class="num">' + esc(r['% Comisión']) + '</td>';
     html += '<td class="num">' + fmtMoney(r['Comisión']) + '</td>';
+    html += '<td>' + chip(r['Mes Liquidación']) + '</td>';
     html += '<td>' + chip(r['Estado Comisión']) + '</td>';
     html += '</tr>';
   });
-  html += '<tr><td colspan="5" style="text-align:right; font-weight:700;">Total comisiones:</td><td class="num" style="font-weight:700;">' + fmtMoney(tot) + '</td><td></td></tr>';
+  html += '<tr><td colspan="5" style="text-align:right; font-weight:700;">Total comisiones:</td><td class="num" style="font-weight:700;">' + fmtMoney(tot) + '</td><td colspan="2"></td></tr>';
   html += '</tbody></table></div>';
+  wrap.innerHTML = html;
+}
+
+function renderLiq(){
+  const wrap = $('appContent');
+  const facturadas = state.data.filter(r => String(r['N° Factura'] || '').trim() !== '');
+  if (!facturadas.length) {
+    wrap.innerHTML = '<div class="tbl-wrap"><div class="empty">No hay facturas en ' + esc(state.currentMonth) + '.</div></div>';
+    return;
+  }
+  const LIQ_MESES = ['ENERO','FEBRERO','MARZO','ABRIL','MAYO','JUNIO','JULIO','AGOSTO','SEPTIEMBRE','OCTUBRE','NOVIEMBRE','DICIEMBRE'];
+  const MONTH_COLORS = {
+    'ENERO':'#e74c3c','FEBRERO':'#e67e22','MARZO':'#f1c40f','ABRIL':'#2ecc71',
+    'MAYO':'#1abc9c','JUNIO':'#3498db','JULIO':'#9b59b6','AGOSTO':'#e91e63',
+    'SEPTIEMBRE':'#00bcd4','OCTUBRE':'#ff5722','NOVIEMBRE':'#795548','DICIEMBRE':'#607d8b'
+  };
+  const cobradas = facturadas.filter(r => String(r['Estado Pago Factura'] || '').toUpperCase().trim() === 'PAGADA');
+  const porLiq = {};
+  cobradas.forEach(r => {
+    const ml = String(r['Mes Liquidación'] || '').trim().toUpperCase() || 'SIN LIQUIDACIÓN';
+    (porLiq[ml] = porLiq[ml] || []).push(r);
+  });
+  const totalCom = cobradas.reduce((s, r) => s + (Number(r['Comisión']) || 0), 0);
+  let html = '<div class="totals-box"><strong>Liquidación ' + esc(state.currentMonth) + '</strong> — facturas cobradas (PAGADA) agrupadas por mes de liquidación.<br>';
+  html += 'Total comisiones a pagar: <span style="font-weight:700; color:var(--primary);">' + fmtMoney(totalCom) + '</span>';
+  html += '</div>';
+  const order = LIQ_MESES.filter(m => porLiq[m]);
+  if (porLiq['SIN LIQUIDACIÓN']) order.push('SIN LIQUIDACIÓN');
+  order.forEach(m => {
+    const rs = porLiq[m];
+    const tot = rs.reduce((s, r) => s + (Number(r['Comisión']) || 0), 0);
+    const col = MONTH_COLORS[m] || 'var(--primary)';
+    html += '<div class="totals-box" style="border-left:4px solid ' + col + '; margin-top:12px;">';
+    html += '<strong style="color:' + col + ';">' + esc(m) + '</strong> — ' + rs.length + ' factura(s) — Total comisión: <strong>' + fmtMoney(tot) + '</strong>';
+    html += '</div>';
+    html += '<div class="tbl-wrap"><table><thead><tr>';
+    ['Empresa','Cliente','N° Factura','Valor Neto','Comisión','Fecha Pago','Estado Comisión'].forEach(h =>
+      html += '<th class="' + (h === 'Valor Neto' || h === 'Comisión' ? 'num' : '') + '">' + esc(h) + '</th>');
+    html += '</tr></thead><tbody>';
+    rs.forEach(r => {
+      const fp = r['Fecha Pago Factura'] ? fmtDate(r['Fecha Pago Factura']) : '—';
+      html += '<tr>';
+      html += '<td>' + esc(r['Empresa']) + '</td>';
+      html += '<td>' + esc(r['Cliente']) + '</td>';
+      html += '<td>' + esc(r['N° Factura']) + '</td>';
+      html += '<td class="num">' + fmtMoney(r['Valor Neto']) + '</td>';
+      html += '<td class="num">' + fmtMoney(r['Comisión']) + '</td>';
+      html += '<td>' + esc(fp) + '</td>';
+      html += '<td>' + chip(r['Estado Comisión']) + '</td>';
+      html += '</tr>';
+    });
+    html += '<tr><td colspan="4" style="text-align:right; font-weight:700;">Subtotal ' + esc(m) + ':</td><td class="num" style="font-weight:700;">' + fmtMoney(tot) + '</td><td colspan="2"></td></tr>';
+    html += '</tbody></table></div>';
+  });
   wrap.innerHTML = html;
 }
 
@@ -1024,6 +1149,7 @@ function openModal(mode, id){
   $('fPct').value = '8';
   $('fComision').value = '';
   $('fEstadoComision').value = 'PAGO FACT. PEND.';
+  $('fMesLiq').value = '';
   $('fObs').value = '';
   $('facturaFields').classList.toggle('hidden', !isEditMode);
   if (mode === 'edit' && id) {
@@ -1054,6 +1180,7 @@ function openModal(mode, id){
       $('fPct').value = (r['% Comisión'] !== '' && r['% Comisión'] != null) ? r['% Comisión'] : '8';
       $('fComision').value = (r['Comisión'] !== '' && r['Comisión'] != null) ? r['Comisión'] : '';
       $('fEstadoComision').value = (r['Estado Comisión'] || 'PAGO FACT. PEND.');
+      $('fMesLiq').value = (r['Mes Liquidación'] || '');
       $('fObs').value = r['Observaciones'] || '';
     }
   }
@@ -1112,6 +1239,7 @@ $('serviceForm').addEventListener('submit', async e => {
   rec['% Comisión'] = $('fPct').value;
   rec['Comisión'] = comisionManual ? $('fComision').value : '';
   rec['Estado Comisión'] = $('fEstadoComision').value;
+  rec['Mes Liquidación'] = $('fMesLiq').value;
   rec['Observaciones'] = $('fObs').value;
   rec['Descuento Tercerizado'] = $('fTercerizado').checked ? $('fDescuento').value : '';
   localStorage.setItem('comisiones_empresa', rec['Empresa']);
