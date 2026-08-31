@@ -71,6 +71,19 @@
   .lnk:hover{text-decoration:underline;}
   .lnk.danger{color:var(--danger);}
 
+  tr.row-cobrada{background:#e3f6ed;}
+  tr.row-cobrada:hover{background:#d3efe2;}
+  tr.sec-row td{background:#f0f4fa; font-weight:800; letter-spacing:.5px; text-transform:uppercase; font-size:12px;}
+  tr.sec-row td .sec-chip{color:var(--primary); margin-right:6px;}
+  tr.tot-row td{background:#fff3e4; font-weight:800;}
+  tr.grand-row td{background:#57CAA6; color:#fff; font-weight:800;}
+  .check-row{display:flex; align-items:center; gap:8px; font-size:13px; font-weight:600; color:var(--text); cursor:pointer;}
+  .check-row input{width:16px; height:16px; accent-color:var(--primary);}
+  .cot-row{display:grid; grid-template-columns:1.4fr 1.4fr 1.4fr 30px; gap:8px; align-items:end; margin-bottom:8px;}
+  @media (max-width:720px){ .cot-row{grid-template-columns:1fr 1fr 30px;} }
+  .imp-header{display:flex; align-items:center; gap:8px; font-size:13px; margin-top:12px;}
+  .imp-header input{width:16px; height:16px; accent-color:var(--primary);}
+
   .chip{display:inline-block; padding:2px 10px; border-radius:12px; font-size:11px; font-weight:700; white-space:nowrap;}
   .chip.warn{background:#ffead6; color:#b05a0e;}
   .chip.ok{background:#dcf4ec; color:var(--accent-dark);}
@@ -151,6 +164,7 @@
           <button class="btn btn-ghost" id="btnGoMonth">Ir</button>
         </div>
         <button class="btn btn-ghost" id="btnViewToggle">Ver resumen mensual</button>
+        <button class="btn btn-ghost" id="btnImport">Importar CSV</button>
         <button class="btn btn-primary" id="btnAgregar">+ Agregar servicio</button>
       </div>
     </div>
@@ -178,20 +192,31 @@
           <input type="text" id="fCliente" required>
         </div>
         <div class="field">
-          <label>OTIN o N° Cotización</label>
-          <input type="text" id="fOtin">
+          <label>Interno o Externo</label>
+          <select id="fInterExt">
+            <option value="">—</option>
+            <option value="INTERNO">Interno</option>
+            <option value="EXTERNO">Externo</option>
+          </select>
         </div>
-        <div class="field">
-          <label>Guía</label>
-          <input type="text" id="fGuia">
+        <div class="field full">
+          <label>
+            <span class="check-row"><input type="checkbox" id="fTercerizado"> ¿Descontar servicio tercerizado? (la comisión se calcula sobre el monto restante)</span>
+          </label>
         </div>
-        <div class="field">
-          <label>OC</label>
-          <input type="text" id="fOc">
+        <div class="field hidden" id="fDescuentoField">
+          <label>Monto a descontar (tercerizado)</label>
+          <input type="number" id="fDescuento" min="0" step="1" placeholder="0">
         </div>
-        <div class="field">
+        <div class="field full">
           <label>N° Factura</label>
           <input type="text" id="fFactura">
+        </div>
+        <div class="field full">
+          <label>Cotizaciones / Guías / OC de esta factura</label>
+          <div class="helper">Una factura puede tener varias cotizaciones. Agrega una fila por cotización con su(s) guía(s) y su orden de compra (o EFECTIVO si se pagó al contado).</div>
+          <div id="cotRows"></div>
+          <button type="button" class="btn btn-ghost" id="btnAddCot" style="margin-top:4px;">+ Agregar cotización</button>
         </div>
         <div class="field full">
           <label>Descripción</label>
@@ -246,12 +271,40 @@
   </div>
 </div>
 
+<div class="overlay hidden" id="importOverlay">
+  <div class="modal">
+    <h2>Importar registros</h2>
+    <div class="muted" style="margin:8px 0 10px;">
+      Pega aquí los datos copiados de Excel/CSV. La primera fila debe ser el encabezado con el nombre de cada columna.
+      Columnas reconocidas: Empresa, Cliente, N° Cotización (o OTIN), Guía, OC, Descripción, N° Factura, Valor Neto,
+      Fecha Vencimiento, Estado Pago Factura, Fecha Pago Factura, % Comisión, Comisión, Estado Comisión, Observaciones,
+      Interno o Externo, Descuento Tercerizado.
+    </div>
+    <div class="field">
+      <label>Mes destino</label>
+      <input type="text" id="impMes" placeholder="AGOSTO 2026">
+    </div>
+    <div class="field">
+      <label>Contenido</label>
+      <textarea id="impCsv" style="min-height:180px; font-family:monospace;" placeholder="Empresa;Cliente;N° Cotización;Guía;OC;Descripción;N° Factura;Valor Neto;..."></textarea>
+    </div>
+    <label class="imp-header"><input type="checkbox" id="impHeader" checked> La primera fila son los encabezados</label>
+    <div class="msg" id="impMsg"></div>
+    <div class="modal-foot">
+      <button type="button" class="btn btn-ghost" id="btnImpCancel">Cancelar</button>
+      <button type="button" class="btn btn-primary" id="btnImpRun">Importar</button>
+    </div>
+  </div>
+</div>
+
 <script>
 const SCRIPT_URL = "https://script.google.com/macros/s/AKfycbwN4XZyEr_l_dTgWlisxmSkE3RsOx2Q5ihil4MwDY3p1jdIVwd9CS6S10mE_VLQk_0c/exec";
 
 const MESES = ['ENERO','FEBRERO','MARZO','ABRIL','MAYO','JUNIO','JULIO','AGOSTO','SEPTIEMBRE','OCTUBRE','NOVIEMBRE','DICIEMBRE'];
 const COLS = [
   { k:'Empresa' },
+  { k:'Interno o Externo' },
+  { k:'Descuento Tercerizado', num:true, money:true },
   { k:'Cliente' },
   { k:'OTIN o N° Cotización' },
   { k:'Guía' },
@@ -370,6 +423,38 @@ function parseMes(nombre){
 }
 function yrOf(p){ return p.year === 0 ? Infinity : p.year; }
 function mesActualCompleto(){ return MESES[new Date().getMonth()] + ' ' + new Date().getFullYear(); }
+function splitList(s){
+  return String(s == null ? '' : s).split(/[\/;,:\-]+/).map(x => x.trim()).filter(Boolean);
+}
+function joinList(arr){
+  return (arr || []).map(x => String(x == null ? '' : x).trim()).filter(Boolean).join(' / ');
+}
+function addCotRow(vals){
+  vals = vals || {};
+  const row = document.createElement('div');
+  row.className = 'cot-row';
+  row.innerHTML =
+    '<div class="field"><label>N° Cotización</label><input class="cot-cot" placeholder="1902"></div>' +
+    '<div class="field"><label>Guía(s)</label><input class="cot-gui" placeholder="1191, 1180"></div>' +
+    '<div class="field"><label>OC</label><input class="cot-oc" placeholder="27349 o EFECTIVO"></div>' +
+    '<button type="button" class="btn btn-ghost cot-del" title="Quitar" style="padding:6px 8px;">Quitar</button>';
+  row.querySelector('.cot-cot').value = vals.cot || '';
+  row.querySelector('.cot-gui').value = vals.gui || '';
+  row.querySelector('.cot-oc').value = vals.oc || '';
+  row.querySelector('.cot-del').addEventListener('click', () => { if (row.parentNode) row.parentNode.removeChild(row); });
+  $('cotRows').appendChild(row);
+}
+function getCotRows(){
+  const arr = [];
+  $('cotRows').querySelectorAll('.cot-row').forEach(r => {
+    const cot = r.querySelector('.cot-cot').value.trim();
+    const gui = r.querySelector('.cot-gui').value.trim();
+    const oc = r.querySelector('.cot-oc').value.trim();
+    if (!cot && !gui && !oc) return;
+    arr.push({ cot: cot, gui: gui, oc: oc });
+  });
+  return arr;
+}
 
 $('btnGoMonth').addEventListener('click', async () => {
   const mi = $('newMonthSel').value;
@@ -386,6 +471,172 @@ $('btnViewToggle').addEventListener('click', () => {
 $('btnAgregar').addEventListener('click', () => openModal('add'));
 $('btnCancel').addEventListener('click', () => $('modalOverlay').classList.add('hidden'));
 $('modalOverlay').addEventListener('click', e => { if (e.target === $('modalOverlay')) $('modalOverlay').classList.add('hidden'); });
+
+const IMP_ALIASES = [
+  ['EMPRESA','Empresa'],
+  ['INTERNO O EXTERNO','Interno o Externo'],
+  ['CLIENTE','Cliente'],
+  ['OTIN','OTIN o N° Cotización'],
+  ['COTIZACION','OTIN o N° Cotización'],
+  ['NCOT','OTIN o N° Cotización'],
+  ['GUIA DE DESPACHO','Guía'],
+  ['GUIA','Guía'],
+  ['GUIAS','Guía'],
+  ['ORDEN DE COMPRA','OC'],
+  ['OC','OC'],
+  ['DESCRIPCION','Descripción'],
+  ['FACTURA','N° Factura'],
+  ['VALOR NETO FACTURA','Valor Neto'],
+  ['VALOR NETO','Valor Neto'],
+  ['NETO','Valor Neto'],
+  ['VENCIMIENTO','Fecha Vencimiento'],
+  ['ESTADO COMISION','Estado Comisión'],
+  ['COMISION ESTADO','Estado Comisión'],
+  ['ESTADO PAGO','Estado Pago Factura'],
+  ['ESTADO FACTURA','Estado Pago Factura'],
+  ['FECHA PAGO','Fecha Pago Factura'],
+  ['PCT','% Comisión'],
+  ['PORCENTAJE','% Comisión'],
+  ['COMISION','Comisión'],
+  ['OBSERVACIONES','Observaciones'],
+  ['DESCUENTO TERCERIZADO','Descuento Tercerizado'],
+  ['DESCUENTO','Descuento Tercerizado']
+];
+const IMP_ORDER = ['Empresa','Cliente','OTIN o N° Cotización','Guía','OC','Descripción','N° Factura','Valor Neto','Fecha Vencimiento','Estado Pago Factura','Fecha Pago Factura','% Comisión','Comisión','Estado Comisión','Observaciones','Interno o Externo','Descuento Tercerizado'];
+
+function impNorm(s){
+  return String(s == null ? '' : s).normalize('NFD').replace(/[\u0300-\u036f]/g, '').toUpperCase().replace(/[^A-Z0-9]/g, ' ');
+}
+function impMapHeader(h){
+  const hn = impNorm(h);
+  if (!hn) return null;
+  for (let i = 0; i < IMP_ALIASES.length; i++) if (hn === IMP_ALIASES[i][0]) return IMP_ALIASES[i][1];
+  for (let i = 0; i < IMP_ALIASES.length; i++) {
+    if (IMP_ALIASES[i][0] && hn.indexOf(IMP_ALIASES[i][0]) !== -1) return IMP_ALIASES[i][1];
+  }
+  return null;
+}
+function parseCsv(text){
+  const lines = text.split(/\r?\n/).filter(l => l.trim() !== '');
+  if (!lines.length) return [];
+  const counts = { ';':0, ',':0, '\t':0 };
+  Object.keys(counts).forEach(d => { counts[d] = lines[0].split(d).length - 1; });
+  let best = ';', bc = -1;
+  Object.keys(counts).forEach(d => { if (counts[d] > bc) { bc = counts[d]; best = d; } });
+  const delim = best;
+  const split = line => {
+    const out = [];
+    let cur = '', q = false;
+    for (let i = 0; i < line.length; i++) {
+      const ch = line[i];
+      if (q) {
+        if (ch === '"') { if (line[i+1] === '"') { cur += '"'; i++; } else q = false; }
+        else cur += ch;
+      } else {
+        if (ch === '"') q = true;
+        else if (ch === delim) { out.push(cur); cur = ''; }
+        else cur += ch;
+      }
+    }
+    out.push(cur);
+    return out.map(x => x.trim());
+  };
+  return lines.map(split);
+}
+function impNum(v){
+  if (v === null || v === undefined || v === '') return '';
+  let s = String(v).replace(/[$.\s]/g, '');
+  s = s.replace(',', '.');
+  const n = parseFloat(s);
+  return isNaN(n) ? '' : String(Math.round(n));
+}
+function impDate(v){
+  const s = String(v || '').trim();
+  if (!s || s === '-') return '';
+  let m = s.match(/^(\d{4})-(\d{2})-(\d{2})$/);
+  if (m) return s;
+  m = s.match(/^(\d{1,2})\/(\d{1,2})\/(\d{4})$/);
+  if (m) return m[3] + '-' + ('0' + m[2]).slice(-2) + '-' + ('0' + m[1]).slice(-2);
+  const n = parseFloat(s);
+  if (!isNaN(n) && n > 20000) {
+    const d = new Date(Date.UTC(1899, 11, 30) + n * 86400000);
+    return d.getUTCFullYear() + '-' + ('0' + (d.getUTCMonth() + 1)).slice(-2) + '-' + ('0' + d.getUTCDate()).slice(-2);
+  }
+  return s;
+}
+function impEstadoFactura(v){
+  const s = String(v || '').toUpperCase().trim().replace(/\s+/g, ' ');
+  if (!s) return '';
+  if (s === 'PAGADA' || s === 'PAGADO') return 'PAGADA';
+  if (s.indexOf('PEND') !== -1) return 'PENDIENTE';
+  return s;
+}
+function impEstadoComision(v){
+  const s = String(v || '').toUpperCase().trim().replace(/\s+/g, ' ');
+  if (!s) return '';
+  if (s.indexOf('PARA PAGO') !== -1 || s.indexOf('PARA PAGAR') !== -1) return 'PARA PAGO';
+  if (s === 'PAGADO') return 'PAGADO';
+  if (s.indexOf('FACT') !== -1 && s.indexOf('PEND') !== -1) return 'PAGO FACT. PEND.';
+  return s;
+}
+function csvToRecords(rows, hasHeader){
+  const records = [];
+  const map = [];
+  if (hasHeader) rows[0].forEach(h => map.push(impMapHeader(h)));
+  else rows[0].forEach((h, i) => map.push(IMP_ORDER[i] || null));
+  const start = hasHeader ? 1 : 0;
+  for (let i = start; i < rows.length; i++) {
+    const rec = {};
+    for (let c = 0; c < map.length; c++) {
+      if (!map[c]) continue;
+      rec[map[c]] = rows[i][c] == null ? '' : rows[i][c];
+    }
+    ['Valor Neto','Descuento Tercerizado','Comisión'].forEach(k => { if (rec[k] !== undefined) rec[k] = impNum(rec[k]); });
+    if (rec['% Comisión'] !== undefined) {
+      const p = parseFloat(String(rec['% Comisión']).replace(',', '.').replace('%', '').trim());
+      rec['% Comisión'] = isNaN(p) ? '8' : p;
+    }
+    if (rec['Fecha Vencimiento'] !== undefined) rec['Fecha Vencimiento'] = impDate(rec['Fecha Vencimiento']);
+    if (rec['Fecha Pago Factura'] !== undefined) rec['Fecha Pago Factura'] = impDate(rec['Fecha Pago Factura']);
+    if (rec['Estado Pago Factura'] !== undefined) rec['Estado Pago Factura'] = impEstadoFactura(rec['Estado Pago Factura']);
+    if (rec['Estado Comisión'] !== undefined) rec['Estado Comisión'] = impEstadoComision(rec['Estado Comisión']);
+    records.push(rec);
+  }
+  return records;
+}
+
+$('btnImport').addEventListener('click', () => {
+  $('impMes').value = state.currentMonth || mesActualCompleto();
+  $('impCsv').value = '';
+  $('impMsg').textContent = ''; $('impMsg').className = 'msg';
+  $('impHeader').checked = true;
+  $('importOverlay').classList.remove('hidden');
+});
+$('btnImpCancel').addEventListener('click', () => $('importOverlay').classList.add('hidden'));
+$('importOverlay').addEventListener('click', e => { if (e.target === $('importOverlay')) $('importOverlay').classList.add('hidden'); });
+
+$('btnImpRun').addEventListener('click', async () => {
+  const msg = $('impMsg');
+  msg.textContent = ''; msg.className = 'msg';
+  const mes = $('impMes').value.trim().toUpperCase();
+  if (!parseMes(mes)) { msg.textContent = 'Mes destino no válido. Usa formato MES AÑO (ej: AGOSTO 2026).'; msg.className = 'msg err'; return; }
+  const rows = parseCsv($('impCsv').value);
+  if (!rows.length) { msg.textContent = 'No hay datos para importar.'; msg.className = 'msg err'; return; }
+  const records = csvToRecords(rows, $('impHeader').checked);
+  if (!records.length) { msg.textContent = 'No se encontraron filas válidas.'; msg.className = 'msg err'; return; }
+  if (!confirm('Se importarán ' + records.length + ' registro(s) en la pestaña ' + mes + '. ¿Continuar?')) return;
+  const btn = $('btnImpRun'); btn.disabled = true;
+  const r = await call(() => apiPost({ action:'bulkImport', mes: mes, records: records, correo: session.correo }));
+  btn.disabled = false;
+  if (r && r.ok) {
+    $('importOverlay').classList.add('hidden');
+    notify(r.message, 'ok');
+    await loadMonths(); renderTabs();
+    await loadMonth(mes);
+  } else if (r) {
+    msg.textContent = r.message; msg.className = 'msg err';
+  }
+});
 
 async function loadMonths(){
   const r = await call(() => apiGet({ action:'months' }));
@@ -430,6 +681,26 @@ function renderStatus(){
   const lbl = document.createElement('div');
   if (exists) {
     lbl.innerHTML = '<span class="lbl">Pestaña:</span> <span class="strong">' + esc(state.currentMonth) + '</span> — <span class="lbl">' + state.data.length + ' registro(s)</span>';
+    const delBtn = document.createElement('button');
+    delBtn.className = 'btn btn-danger';
+    delBtn.textContent = 'Eliminar mes';
+    delBtn.addEventListener('click', async () => {
+      if (!confirm('¿Eliminar la pestaña ' + state.currentMonth + ' con TODOS sus registros? Esta acción no se puede deshacer.')) return;
+      delBtn.disabled = true;
+      const r = await call(() => apiPost({ action:'deleteMonth', mes: state.currentMonth, correo: session.correo }));
+      delBtn.disabled = false;
+      if (r && r.ok) {
+        notify(r.message, 'ok');
+        state.data = [];
+        await loadMonths();
+        renderTabs();
+        state.currentMonth = state.months.indexOf(mesActualCompleto()) !== -1 ? mesActualCompleto() : (orderedMonths()[0] || mesActualCompleto());
+        await loadMonth(state.currentMonth);
+      } else if (r) {
+        notify(r.message, 'err');
+      }
+    });
+    bar.appendChild(delBtn);
   } else {
     lbl.innerHTML = '<span class="lbl">Pestaña:</span> <span class="strong">' + esc(state.currentMonth) + '</span> <span style="color:var(--danger);font-weight:700;"> no existe todavía</span>';
     const btn = document.createElement('button');
@@ -464,18 +735,19 @@ function renderContent(){
 }
 
 function renderCards(){
-  let pendiente = 0, paraPago = 0, pagado = 0, total = 0;
+  let pendiente = 0, cobrado = 0, paraPago = 0, pagado = 0, total = 0;
   state.data.forEach(r => {
     const vn = Number(r['Valor Neto']) || 0;
     const com = Number(r['Comisión']) || 0;
     const sp = String(r['Estado Pago Factura'] || '').toUpperCase().trim() === 'PAGADA';
     const sc = String(r['Estado Comisión'] || '').toUpperCase().trim();
     total += com;
-    if (!sp) pendiente += vn;
+    if (sp) cobrado += vn; else pendiente += vn;
     if (sc === 'PARA PAGO') paraPago += com;
     if (sc === 'PAGADO') pagado += com;
   });
   const cards = [
+    { l:'Facturas cobradas del mes', v: fmtMoney(cobrado) || '$0', s:'Suma de Valor Neto con factura PAGADA (se pagan en la liquidación)' },
     { l:'Pendiente de cobro de factura', v: fmtMoney(pendiente) || '$0', s:'Suma de Valor Neto con factura no pagada' },
     { l:'Comisiones PARA PAGO', v: fmtMoney(paraPago) || '$0', s:'Listas para pagar al vendedor' },
     { l:'Comisiones pagadas', v: fmtMoney(pagado) || '$0', s:'Estado Comisión = PAGADO' },
@@ -514,7 +786,54 @@ function tableHtml(rows, cols, opts){
 
 function renderTable(){
   const wrap = $('appContent');
-  wrap.innerHTML = tableHtml(state.data, COLS, { empty:'No hay servicios registrados en ' + esc(state.currentMonth) + '.', actions:true });
+  if (!state.data.length) {
+    wrap.innerHTML = '<div class="tbl-wrap"><div class="empty">No hay servicios registrados en ' + esc(state.currentMonth) + '.</div></div>';
+    bindTableActions(wrap);
+    return;
+  }
+  const grouped = {};
+  state.data.forEach(r => {
+    const e = String(r['Empresa'] || '').trim() || 'SIN EMPRESA';
+    (grouped[e] = grouped[e] || []).push(r);
+  });
+  const rank = { 'SPA':0, 'EIRL':1 };
+  const order = Object.keys(grouped).sort((a, b) =>
+    (rank[a] !== undefined || rank[b] !== undefined) ? ((rank[a] === undefined ? 2 : rank[a]) - (rank[b] === undefined ? 2 : rank[b])) : a.localeCompare(b));
+
+  const iv = COLS.findIndex(c => c.k === 'Valor Neto');
+  const ic = COLS.findIndex(c => c.k === 'Comisión');
+  const ncols = COLS.length + 1;
+  const sum = (rs, k) => rs.reduce((s, r) => s + (Number(r[k]) || 0), 0);
+  function totRow(cls, label, rs){
+    return '<tr class="' + cls + '"><td colspan="' + iv + '">' + label + '</td>' +
+      '<td class="num">' + fmtMoney(sum(rs, 'Valor Neto')) + '</td>' +
+      '<td colspan="' + (ic - iv - 1) + '"></td>' +
+      '<td class="num">' + fmtMoney(sum(rs, 'Comisión')) + '</td>' +
+      '<td colspan="' + (ncols - ic - 1) + '"></td></tr>';
+  }
+
+  let html = '<div class="tbl-wrap"><table><thead><tr>';
+  COLS.forEach(c => html += '<th class="' + (c.num ? 'num' : '') + '">' + esc(c.t || c.k) + '</th>');
+  html += '<th>Acciones</th></tr></thead><tbody>';
+  order.forEach(e => {
+    const rows = grouped[e];
+    html += '<tr class="sec-row"><td colspan="' + ncols + '">' + esc(e) + ' — ' + rows.length + ' registro(s)</td></tr>';
+    rows.forEach(r => {
+      const cobrada = String(r['Estado Pago Factura'] || '').toUpperCase().trim() === 'PAGADA';
+      html += '<tr' + (cobrada ? ' class="row-cobrada"' : '') + '>';
+      COLS.forEach(c => html += cellHtml(r, c));
+      html += '<td><span class="lnk" data-edit="' + esc(String(r['ID'])) + '">Editar</span> <span class="lnk danger" data-del="' + esc(String(r['ID'])) + '">Eliminar</span></td>';
+      html += '</tr>';
+    });
+    html += totRow('tot-row', 'Subtotal ' + esc(e), rows);
+  });
+  html += totRow('grand-row', 'TOTAL DEL MES', state.data);
+  html += '</tbody></table></div>';
+  wrap.innerHTML = html;
+  bindTableActions(wrap);
+}
+
+function bindTableActions(wrap){
   wrap.querySelectorAll('[data-edit]').forEach(a => a.addEventListener('click', () => openModal('edit', a.dataset.edit)));
   wrap.querySelectorAll('[data-del]').forEach(a => a.addEventListener('click', async () => {
     const reg = state.data.find(x => String(x['ID']) === String(a.dataset.del));
@@ -567,9 +886,14 @@ function openModal(mode, id){
   comisionManual = false;
   $('modalTitle').textContent = mode === 'edit' ? 'Editar servicio' : 'Agregar servicio';
   $('fId').value = '';
-  $('fEmpresa').value = 'SPA';
+  $('fEmpresa').value = localStorage.getItem('comisiones_empresa') || 'SPA';
   $('fCliente').value = '';
-  $('fOtin').value = ''; $('fGuia').value = ''; $('fOc').value = '';
+  $('fInterExt').value = '';
+  $('fTercerizado').checked = false;
+  $('fDescuentoField').classList.add('hidden');
+  $('fDescuento').value = '';
+  $('cotRows').innerHTML = '';
+  addCotRow();
   $('fDesc').value = ''; $('fFactura').value = '';
   $('fValorNeto').value = '';
   $('fVenc').value = '';
@@ -585,9 +909,19 @@ function openModal(mode, id){
       $('fId').value = String(r['ID']);
       $('fEmpresa').value = (r['Empresa'] || 'SPA');
       $('fCliente').value = r['Cliente'] || '';
-      $('fOtin').value = r['OTIN o N° Cotización'] || '';
-      $('fGuia').value = r['Guía'] || '';
-      $('fOc').value = r['OC'] || '';
+      $('fInterExt').value = (r['Interno o Externo'] || '');
+      const des = Number(r['Descuento Tercerizado']) || 0;
+      if (des > 0) {
+        $('fTercerizado').checked = true;
+        $('fDescuentoField').classList.remove('hidden');
+        $('fDescuento').value = des;
+      }
+      $('cotRows').innerHTML = '';
+      const cots = splitList(r['OTIN o N° Cotización']);
+      const guis = splitList(r['Guía']);
+      const ocs = splitList(r['OC']);
+      const len = Math.max(cots.length, guis.length, ocs.length, 1);
+      for (let i = 0; i < len; i++) addCotRow({ cot: cots[i] || '', gui: guis[i] || '', oc: ocs[i] || '' });
       $('fDesc').value = r['Descripción'] || '';
       $('fFactura').value = r['N° Factura'] || '';
       $('fValorNeto').value = r['Valor Neto'] || '';
@@ -607,14 +941,22 @@ function openModal(mode, id){
 function recomputeComision(){
   const vn = parseFloat($('fValorNeto').value);
   const pct = parseFloat($('fPct').value);
+  const des = $('fTercerizado').checked ? (parseFloat($('fDescuento').value) || 0) : 0;
   if (!isNaN(vn) && !isNaN(pct)) {
-    $('fComision').value = Math.round(vn * pct / 100);
+    const base = Math.max(vn - des, 0);
+    $('fComision').value = Math.round(base * pct / 100);
   } else {
     $('fComision').value = '';
   }
 }
 $('fValorNeto').addEventListener('input', () => { if (!comisionManual) recomputeComision(); });
 $('fPct').addEventListener('input', () => { if (!comisionManual) recomputeComision(); });
+$('fDescuento').addEventListener('input', () => { if (!comisionManual) recomputeComision(); });
+$('fTercerizado').addEventListener('change', () => {
+  $('fDescuentoField').classList.toggle('hidden', !$('fTercerizado').checked);
+  if (!comisionManual) recomputeComision();
+});
+$('btnAddCot').addEventListener('click', () => addCotRow());
 $('fComision').addEventListener('input', () => { comisionManual = true; });
 $('fEstadoPago').addEventListener('change', () => {
   if ($('fEstadoPago').value === 'PAGADA' && !$('fFechaPago').value) {
@@ -631,9 +973,10 @@ $('serviceForm').addEventListener('submit', async e => {
   const rec = {};
   rec['Empresa'] = $('fEmpresa').value;
   rec['Cliente'] = $('fCliente').value;
-  rec['OTIN o N° Cotización'] = $('fOtin').value;
-  rec['Guía'] = $('fGuia').value;
-  rec['OC'] = $('fOc').value;
+  const cots = getCotRows();
+  rec['OTIN o N° Cotización'] = joinList(cots.map(x => x.cot));
+  rec['Guía'] = joinList(cots.map(x => x.gui));
+  rec['OC'] = joinList(cots.map(x => x.oc));
   rec['Descripción'] = $('fDesc').value;
   rec['N° Factura'] = $('fFactura').value;
   rec['Valor Neto'] = $('fValorNeto').value;
@@ -641,9 +984,12 @@ $('serviceForm').addEventListener('submit', async e => {
   rec['Estado Pago Factura'] = $('fEstadoPago').value;
   rec['Fecha Pago Factura'] = $('fFechaPago').value;
   rec['% Comisión'] = $('fPct').value;
-  rec['Comisión'] = $('fComision').value;
+  rec['Comisión'] = comisionManual ? $('fComision').value : '';
   rec['Estado Comisión'] = $('fEstadoComision').value;
   rec['Observaciones'] = $('fObs').value;
+  rec['Interno o Externo'] = $('fInterExt').value;
+  rec['Descuento Tercerizado'] = $('fTercerizado').checked ? $('fDescuento').value : '';
+  localStorage.setItem('comisiones_empresa', rec['Empresa']);
   const btn = $('btnSave');
   btn.disabled = true;
   let r;
