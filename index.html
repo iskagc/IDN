@@ -95,6 +95,9 @@
   @media (max-width:720px){ .cot-row{grid-template-columns:1fr 1fr 30px;} }
   .imp-header{display:flex; align-items:center; gap:8px; font-size:13px; margin-top:12px;}
   .imp-header input{width:16px; height:16px; accent-color:var(--primary);}
+  .imp-preview{background:#f7fafc; border:1px dashed var(--border); border-radius:8px; padding:8px 10px; font-size:12px; color:var(--text); margin:10px 0; line-height:1.6;}
+  .imp-preview .mini-tbl{margin-top:6px; border-top:1px solid var(--border); padding-top:6px;}
+  .lnk{cursor:pointer; text-decoration:underline; color:var(--primary); background:none; border:none; font:inherit;}
 
   .chip{display:inline-block; padding:2px 10px; border-radius:12px; font-size:11px; font-weight:700; white-space:nowrap;}
   .chip.warn{background:#ffead6; color:#b05a0e;}
@@ -356,11 +359,14 @@
   <div class="modal">
     <h2>Importar registros</h2>
     <div class="muted" style="margin:8px 0 10px;">
-      Pega aquí los datos copiados de Excel/CSV. La primera fila debe ser el encabezado con el nombre de cada columna.
-      Columnas reconocidas: Empresa, Cliente, N° Cotización (o OTIN), Guía, OC, Descripción, N° Factura, Valor Neto,
-      Fecha Vencimiento, Estado Pago Factura, Fecha Pago Factura, % Comisión, Comisión, Estado Comisión, Observaciones,
-      Interno o Externo, Descuento Tercerizado, Estado Facturación, Mes Liquidación.
+      <strong>Forma recomendada:</strong> descarga la <button type="button" class="lnk" id="impPlantilla">plantilla</button>, llénala en Google Sheets/Excel y pega aquí el rango con su encabezado.<br>
+      O pega tus datos tal como están: la primera fila debe ser el encabezado con el nombre de cada columna.
+      <br>Columnas reconocidas: Empresa, Cliente, N° Cotización/OTIN, Guía, OC, Descripción, N° Factura, Valor Neto,
+      Fecha Vencimiento, Estado Pago Factura, Fecha Pago Factura, % Comisión, Comisión, Estado Comisión,
+      Interno o Externo, Descuento Tercerizado, Estado Facturación, Mes Liquidación, Observaciones.
+      <br><span style="color:var(--primary);">En una misma celda puedes separar varias cotizaciones o guías con <b>/</b>, <b>-</b>, <b>,</b> o <b>;</b> (ej. Guía: <b>1191/1180</b>).</span>
     </div>
+    <div class="imp-preview" id="impPreview" style="display:none;"></div>
     <div class="field">
       <label>Mes destino</label>
       <input type="text" id="impMes" placeholder="AGOSTO 2026">
@@ -573,38 +579,59 @@ $('modalOverlay').addEventListener('click', e => { if (e.target === $('modalOver
 const IMP_ALIASES = [
   ['EMPRESA','Empresa'],
   ['INTERNO O EXTERNO','Interno o Externo'],
+  ['INTERNO EXTERNO','Interno o Externo'],
   ['CLIENTE','Cliente'],
+  ['OTIN N COTIZACION','OTIN o N° Cotización'],
+  ['OTIN N COT','OTIN o N° Cotización'],
   ['OTIN','OTIN o N° Cotización'],
+  ['N COTIZACION','OTIN o N° Cotización'],
   ['COTIZACION','OTIN o N° Cotización'],
   ['NCOT','OTIN o N° Cotización'],
+  ['COT','OTIN o N° Cotización'],
   ['GUIA DE DESPACHO','Guía'],
+  ['GUIA DESPACHO','Guía'],
   ['GUIA','Guía'],
   ['GUIAS','Guía'],
+  ['GD','Guía'],
   ['ORDEN DE COMPRA','OC'],
   ['OC','OC'],
   ['DESCRIPCION','Descripción'],
+  ['DESCRIPCION DEL SERVICIO','Descripción'],
   ['FACTURA','N° Factura'],
+  ['N FACTURA','N° Factura'],
+  ['NUMERO FACTURA','N° Factura'],
   ['ESTADO FACTURACION','Estado Facturación'],
   ['FACTURACION','Estado Facturación'],
   ['FASE FACTURACION','Estado Facturación'],
+  ['PERIODO FACTURA','Estado Facturación'],
   ['VALOR NETO FACTURA','Valor Neto'],
   ['VALOR NETO','Valor Neto'],
   ['NETO','Valor Neto'],
   ['VENCIMIENTO','Fecha Vencimiento'],
+  ['FECHA VENCIMIENTO','Fecha Vencimiento'],
+  ['FECHA VENC','Fecha Vencimiento'],
   ['ESTADO COMISION','Estado Comisión'],
   ['COMISION ESTADO','Estado Comisión'],
+  ['ESTADO PAGO FACTURA','Estado Pago Factura'],
+  ['PAGO FACTURA','Estado Pago Factura'],
+  ['ESTADO PAGO FACT','Estado Pago Factura'],
   ['ESTADO PAGO','Estado Pago Factura'],
   ['ESTADO FACTURA','Estado Pago Factura'],
+  ['FECHA PAGO FACTURA','Fecha Pago Factura'],
   ['FECHA PAGO','Fecha Pago Factura'],
   ['PCT','% Comisión'],
   ['PORCENTAJE','% Comisión'],
+  ['PORCENTAJE COMISION','% Comisión'],
   ['COMISION','Comisión'],
+  ['COMISION MONTO','Comisión'],
   ['OBSERVACIONES','Observaciones'],
+  ['OBESERVACIONES','Observaciones'],
   ['DESCUENTO TERCERIZADO','Descuento Tercerizado'],
   ['DESCUENTO','Descuento Tercerizado'],
   ['MES LIQUIDACION','Mes Liquidación'],
   ['LIQUIDACION','Mes Liquidación'],
-  ['LIQ','Mes Liquidación']
+  ['LIQ','Mes Liquidación'],
+  ['MES LIQ','Mes Liquidación']
 ];
 const IMP_ORDER = ['Empresa','Cliente','OTIN o N° Cotización','Guía','OC','Descripción','N° Factura','Estado Facturación','Valor Neto','Fecha Vencimiento','Estado Pago Factura','Fecha Pago Factura','% Comisión','Comisión','Estado Comisión','Mes Liquidación','Observaciones','Interno o Externo','Descuento Tercerizado'];
 
@@ -649,7 +676,10 @@ function parseCsv(text){
 }
 function impNum(v){
   if (v === null || v === undefined || v === '') return '';
-  let s = String(v).replace(/[$.\s]/g, '');
+  if (typeof v === 'number') return Math.abs(v) >= 100000 ? String(Math.round(v)) : Math.round(v * 100) / 100;
+  let s = String(v).trim();
+  if (!s) return '';
+  s = s.replace(/[$ .]/g, '');
   s = s.replace(',', '.');
   const n = parseFloat(s);
   return isNaN(n) ? '' : String(Math.round(n));
@@ -661,12 +691,29 @@ function impDate(v){
   if (m) return s;
   m = s.match(/^(\d{1,2})\/(\d{1,2})\/(\d{4})$/);
   if (m) return m[3] + '-' + ('0' + m[2]).slice(-2) + '-' + ('0' + m[1]).slice(-2);
+  m = s.match(/^(\d{1,2})-(\d{1,2})-(\d{2,4})$/);
+  if (m) {
+    let y = m[3]; if (y.length === 2) y = '20' + y;
+    return y + '-' + ('0' + m[2]).slice(-2) + '-' + ('0' + m[1]).slice(-2);
+  }
   const n = parseFloat(s);
-  if (!isNaN(n) && n > 20000) {
+  if (!isNaN(n) && n > 20000 && n < 70000) {
     const d = new Date(Date.UTC(1899, 11, 30) + n * 86400000);
     return d.getUTCFullYear() + '-' + ('0' + (d.getUTCMonth() + 1)).slice(-2) + '-' + ('0' + d.getUTCDate()).slice(-2);
   }
   return s;
+}
+function impRef(v){
+  const s = String(v || '').trim();
+  if (!s || s === '-') return '';
+  const n = parseFloat(s.replace(/[$ .]/g, '').replace(',', '.'));
+  if (!isNaN(n) && n < 20000) return String(Math.round(n));
+  if (!isNaN(n) && n >= 20000 && n < 70000) return String(Math.round(n));
+  return s;
+}
+function impRefList(v){
+  const parts = splitList(String(v == null ? '' : v));
+  return joinList(parts);
 }
 function impEstadoFactura(v){
   const s = String(v || '').toUpperCase().trim().replace(/\s+/g, ' ');
@@ -686,16 +733,30 @@ function impEstadoComision(v){
 function csvToRecords(rows, hasHeader){
   const records = [];
   const map = [];
+  const PLANILLA_ORDER = ['Cliente','Interno o Externo','OTIN o N° Cotización','Guía','OC','Descripción','N° Factura','Valor Neto','Fecha Vencimiento','Estado Pago Factura','Fecha Pago Factura','Comisión','Estado Comisión','Observaciones'];
   if (hasHeader) rows[0].forEach(h => map.push(impMapHeader(h)));
-  else rows[0].forEach((h, i) => map.push(IMP_ORDER[i] || null));
+  else rows[0].forEach((h, i) => map.push(PLANILLA_ORDER[i] || null));
+  const recognized = map.filter(m => m).length;
   const start = hasHeader ? 1 : 0;
+  let section = '';
   for (let i = start; i < rows.length; i++) {
+    const raw = rows[i];
     const rec = {};
     for (let c = 0; c < map.length; c++) {
-      if (!map[c]) continue;
-      rec[map[c]] = rows[i][c] == null ? '' : rows[i][c];
+      if (map[c]) rec[map[c]] = raw[c] == null ? '' : raw[c];
     }
-    ['Valor Neto','Descuento Tercerizado','Comisión'].forEach(k => { if (rec[k] !== undefined) rec[k] = impNum(rec[k]); });
+    const cliente = String(rec['Cliente'] || '').trim().toUpperCase();
+    if (cliente === 'SPA' || cliente === 'EIRL') { section = cliente; continue; }
+    if (cliente === '' && String(rec['Valor Neto']).trim() === '' && String(rec['N° Factura']).trim() === '' && String(rec['Descripción'] || '').trim() === '') continue;
+    const isEfectivoOC = /efectivo/i.test(String(rec['OC'] || ''));
+    if (!rec['Cliente'] && !rec['Descripción'] && String(rec['Valor Neto']).trim() === '') continue;
+    if (rec['Valor Neto'] !== undefined) rec['Valor Neto'] = impNum(rec['Valor Neto']);
+    if (rec['Descuento Tercerizado'] !== undefined) rec['Descuento Tercerizado'] = impNum(rec['Descuento Tercerizado']);
+    if (rec['Comisión'] !== undefined) rec['Comisión'] = impNum(rec['Comisión']);
+    if (rectext(rec['Guía'])) rec['Guía'] = impRefList(rec['Guía']);
+    if (rec['OTIN o N° Cotización'] !== undefined) rec['OTIN o N° Cotización'] = impRefList(rec['OTIN o N° Cotización']);
+    if (rectext(rec['OC'])) rec['OC'] = isEfectivoOC ? 'EFECTIVO' : impRefList(rec['OC']);
+    if (rec['N° Factura'] !== undefined) rec['N° Factura'] = impRef(rec['N° Factura']);
     if (rec['% Comisión'] !== undefined) {
       const p = parseFloat(String(rec['% Comisión']).replace(',', '.').replace('%', '').trim());
       rec['% Comisión'] = isNaN(p) ? '8' : p;
@@ -704,26 +765,75 @@ function csvToRecords(rows, hasHeader){
     if (rec['Fecha Pago Factura'] !== undefined) rec['Fecha Pago Factura'] = impDate(rec['Fecha Pago Factura']);
     if (rec['Estado Pago Factura'] !== undefined) rec['Estado Pago Factura'] = impEstadoFactura(rec['Estado Pago Factura']);
     if (rec['Estado Comisión'] !== undefined) rec['Estado Comisión'] = impEstadoComision(rec['Estado Comisión']);
+    if (!rec['Empresa'] && section) rec['Empresa'] = section;
+    if (rec['Empresa'] !== undefined && !rec['Empresa']) delete rec['Empresa'];
     if (rec['Estado Facturación'] !== undefined) {
       const fx = String(rec['Estado Facturación']).trim().toUpperCase();
       const hasInv = String(rec['N° Factura'] || '').trim() !== '';
       rec['Estado Facturación'] = hasInv ? ((fx && fx.indexOf('FACTURA') !== -1) ? 'FACTURADA' : 'SIN FACTURA') : 'SIN FACTURA';
     }
     if (!rec['Estado Facturación']) rec['Estado Facturación'] = String(rec['N° Factura'] || '').trim() ? 'FACTURADA' : 'SIN FACTURA';
-    records.push(rec);
+    if (rec['Mes Liquidación'] !== undefined) {
+      const ml = String(rec['Mes Liquidación']).toUpperCase().trim();
+      rec['Mes Liquidación'] = MESES.indexOf(ml) !== -1 ? ml : '';
+    }
+    records.push({ rec: rec });
   }
-  return records;
+  return { records: records, recognized: recognized };
 }
+function rectext(v){ return v !== undefined && v !== null; }
 
 $('btnImport').addEventListener('click', () => {
   $('impMes').value = state.currentMonth || mesActualCompleto();
   $('impCsv').value = '';
   $('impMsg').textContent = ''; $('impMsg').className = 'msg';
+  $('impPreview').style.display = 'none'; $('impPreview').innerHTML = '';
   $('impHeader').checked = true;
   $('importOverlay').classList.remove('hidden');
 });
+$('impCsv').addEventListener('input', updateImportPreview);
+$('impHeader').addEventListener('change', updateImportPreview);
 $('btnImpCancel').addEventListener('click', () => $('importOverlay').classList.add('hidden'));
 $('importOverlay').addEventListener('click', e => { if (e.target === $('importOverlay')) $('importOverlay').classList.add('hidden'); });
+
+$('impPlantilla').addEventListener('click', () => {
+  const ordenTxt = 'Empresa\tCliente\tN° Cotización\tGuía\tOC\tDescripción\tN° Factura\tValor Neto\tFecha Vencimiento\tEstado Pago Factura\tFecha Pago Factura\t% Comisión\tComisión\tEstado Comisión\tMes Liquidación\tInterno o Externo\tDescuento Tercerizado\tObservaciones';
+  const ejemplo = 'SPA\tCliente ejemplo\t1902\t1191/1180\t27349\tBrocas, guantes\t\t468586\t05/09/2026\tPENDIENTE\t\t8\t\tPAGO FACT. PEND.\tAGOSTO\tINTERNO\t\t';
+  const blob = new Blob(['\uFEFF' + ordenTxt + '\n' + ejemplo + '\n'], { type: 'text/csv;charset=utf-8;' });
+  const a = document.createElement('a');
+  a.href = URL.createObjectURL(blob);
+  a.download = 'plantilla_comisiones.csv';
+  document.body.appendChild(a); a.click(); document.body.removeChild(a);
+  notify('Plantilla descargada. Pégalo en el cuadro de importar.', 'ok');
+});
+
+function updateImportPreview(){
+  const txt = $('impCsv').value;
+  const pre = $('impPreview');
+  if (!txt.trim()) { pre.style.display = 'none'; pre.innerHTML = ''; return; }
+  try {
+    const rows = parseCsv(txt);
+    if (!rows.length) return;
+    const res = csvToRecords(rows, $('impHeader').checked);
+    const dataRecs = res.records.length;
+    let html = '<strong>Vista previa:</strong> ' + dataRecs + ' registro(s) detectado(s)' +
+      (res.recognized ? ' · ' + res.recognized + ' columna(s) reconocidas' : '') + '<br>';
+    if (res.recognized < 4 && $('impHeader').checked) {
+      html += '<span style="color:var(--danger);">⚠ Se reconocieron pocas columnas. Revisa que los encabezados coincidan con los nombres esperados, o usa la plantilla.</span>';
+    }
+    const proto = res.records.find(x => x['Cliente']);
+    if (proto) {
+      html += '<div class="mini-tbl">';
+      html += '<div>Ejemplo leído — Cliente: <b>' + (proto['Cliente'] || '—') + '</b> · Factura: <b>' + (proto['N° Factura'] || '—') + '</b> · Valor Neto: <b>' + (proto['Valor Neto'] || '—') + '</b></div>';
+      if (proto['Guía']) html += '<div>Guía: <b>' + esc(proto['Guía']) + '</b></div>';
+      html += '</div>';
+    }
+    pre.innerHTML = html;
+    pre.style.display = 'block';
+  } catch (e) {
+    pre.style.display = 'none';
+  }
+}
 
 $('btnImpRun').addEventListener('click', async () => {
   const msg = $('impMsg');
@@ -732,8 +842,12 @@ $('btnImpRun').addEventListener('click', async () => {
   if (!parseMes(mes)) { msg.textContent = 'Mes destino no válido. Usa formato MES AÑO (ej: AGOSTO 2026).'; msg.className = 'msg err'; return; }
   const rows = parseCsv($('impCsv').value);
   if (!rows.length) { msg.textContent = 'No hay datos para importar.'; msg.className = 'msg err'; return; }
-  const records = csvToRecords(rows, $('impHeader').checked);
-  if (!records.length) { msg.textContent = 'No se encontraron filas válidas.'; msg.className = 'msg err'; return; }
+  const res = csvToRecords(rows, $('impHeader').checked);
+  const records = res.records;
+  if (!records.length) {
+    msg.textContent = 'No se encontraron filas válidas. Revisa que los encabezados coincidan o usa la plantilla.';
+    msg.className = 'msg err'; return;
+  }
   if (!confirm('Se importarán ' + records.length + ' registro(s) en la pestaña ' + mes + '. ¿Continuar?')) return;
   const btn = $('btnImpRun'); btn.disabled = true;
   const r = await call(() => apiPost({ action:'bulkImport', mes: mes, records: records, correo: session.correo }));
